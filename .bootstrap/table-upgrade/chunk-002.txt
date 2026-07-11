@@ -1,0 +1,58 @@
+st previous = segments.at(-1);
+    const mergeable = previous && previous.type === type && !['space', 'email', 'url', 'document_code'].includes(type);
+    if (mergeable) previous.text += token;
+    else segments.push({ text: token, type, language: type === 'thai' ? 'th' : type === 'english' ? 'en' : type });
+  }
+  return segments;
+}
+
+export function joinSegments(segments) {
+  return (segments || []).map(segment => segment.text).join('');
+}
+
+export function strictPreservationKind(text) {
+  const value = String(text ?? '').trim();
+  if (EMAIL_RE.test(value)) return 'email';
+  if (URL_RE.test(value)) return 'url';
+  if (PHONE_RE.test(value)) return 'phone';
+  if (CODE_RE.test(value) && /[-_./\\:#]/.test(value)) return 'document_code';
+  if (/^(?:[A-Za-z]:\\|\/)[^\n]+$/.test(value)) return 'file_path';
+  if (/^\d+(?:\.\d+){1,4}$/.test(value)) return 'version';
+  return null;
+}
+
+export function validateStrictNumber(value, type = 'number') {
+  const raw = String(value ?? '').trim();
+  const normalizedDigits = raw.replace(/[๐-๙]/g, char => String('๐๑๒๓๔๕๖๗๘๙'.indexOf(char)));
+  const patterns = {
+    integer: /^[-+]?\d+$/,
+    decimal: /^[-+]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/,
+    currency: /^(?:฿|THB|USD|EUR|\$|€)?\s*(?:-?\d+|-?\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$|^\((?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?\)$/i,
+    percentage: /^[-+]?(?:\d+|\d+\.\d+)\s*%$/,
+    date: /^(?:0?[1-9]|[12]\d|3[01])[\/.\-](?:0?[1-9]|1[0-2])[\/.\-](?:\d{2}|\d{4})$/,
+    time: /^(?:[01]?\d|2[0-3])[:.]?[0-5]\d(?:\s*น\.)?$/u,
+    number: /^[-+]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/,
+  };
+  const pattern = patterns[type] || patterns.number;
+  const valid = pattern.test(normalizedDigits);
+  const ambiguous = /[OIlSBZG]/.test(raw) || /[oI|]/.test(raw);
+  return {
+    raw,
+    normalizedDigits,
+    type,
+    valid,
+    ambiguous,
+    status: valid && !ambiguous ? 'verified' : ambiguous ? 'manual_review_required' : 'review_recommended',
+  };
+}
+
+export function inferColumnType(header, values = []) {
+  const normalizedHeader = String(header ?? '').trim().toLowerCase();
+  const text = [normalizedHeader, ...values.map(value => String(value ?? '').trim())].filter(Boolean);
+  const candidates = [
+    ['running_number', /(ลำดับ|ที่|no\.?|number)/i],
+    ['name', /(ชื่อ|name|นามสกุล|surname)/i],
+    ['organization', /(หน่วยงาน|ฝ่าย|กอง|แผนก|department|organization)/i],
+    ['date', /(วันที่|date)/i],
+    ['time', /(เวลา|time)/i],
+    ['currency', /(จำนวนเงิน|ยอด|ราคา|บาท|amount|price|total)/i],
