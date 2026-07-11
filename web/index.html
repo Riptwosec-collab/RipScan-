@@ -1,14 +1,26 @@
 <!doctype html>
-<html lang="th">
+<html lang="th" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071018">
+  <meta name="theme-color" content="#050725">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RipScan">
   <title>RipScan — Thai-English OCR</title>
-  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ พร้อมตรวจตารางระดับ Cell, Numeric Strict, คำไทยอ่านยาก และโหมดออฟไลน์">
+  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ พร้อมตรวจแก้ผลลัพธ์ ตาราง และคำไทยอ่านยากภายในเบราว์เซอร์">
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem('ripscan-theme');
+        const theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    })();
+  </script>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon-192.svg">
@@ -16,52 +28,153 @@
   <link rel="stylesheet" href="/upgrade.css">
   <link rel="stylesheet" href="/advanced.css">
   <link rel="stylesheet" href="/verified.css">
+  <link rel="stylesheet" href="/redesign.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
-  <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">R</span><span><strong>RipScan</strong><small>Thai–English OCR</small></span></a>
-    <div id="health" class="health"><span class="dot"></span><span>กำลังโหลด OCR</span></div>
+  <div class="site-backdrop" aria-hidden="true">
+    <span class="backdrop-orb orb-one" data-depth="0.45"></span>
+    <span class="backdrop-orb orb-two" data-depth="0.28"></span>
+    <span class="backdrop-orb orb-three" data-depth="0.18"></span>
+    <span class="star-field"></span>
+  </div>
+
+  <header class="topbar" id="home">
+    <a class="brand" href="#home" aria-label="RipScan หน้าแรก">
+      <span class="brand-mark">R</span>
+      <span class="brand-copy"><strong>RipScan</strong><small>Thai–English OCR</small></span>
+    </a>
+
+    <nav class="main-nav" id="mainNav" aria-label="เมนูหลัก">
+      <a class="active" href="#home" aria-current="page">หน้าแรก</a>
+      <a href="#upload">วิธีใช้งาน</a>
+      <a href="#featureBar">ราคา</a>
+      <a href="#siteFooter">ติดต่อ</a>
+    </nav>
+
+    <div class="header-actions">
+      <div id="health" class="health" aria-live="polite"><span class="dot"></span><span>กำลังโหลด OCR</span></div>
+      <button id="themeToggle" class="icon-button theme-toggle" type="button" aria-label="สลับเป็นธีมสว่าง" aria-pressed="false">
+        <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 14.2A8.4 8.4 0 0 1 9.8 3.6a8.5 8.5 0 1 0 10.6 10.6Z"/></svg>
+        <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <button class="language-chip" type="button" aria-label="ภาษาปัจจุบัน ภาษาไทย"><span aria-hidden="true">🇹🇭</span><strong>TH</strong></button>
+      <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="เปิดเมนู" aria-controls="mainNav" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </header>
+
   <main>
-    <section class="hero">
-      <p class="eyebrow">PRIVATE BROWSER OCR · VERIFIED TABLE · PWA</p>
-      <h1>เปลี่ยนภาพและ PDF<br><span>เป็นเอกสารที่ตรวจสอบได้</span></h1>
-      <p class="subtitle">Tesseract.js 7 พร้อม Worker Pool ตรวจตารางแยก Cell ป้องกันข้อมูลข้ามคอลัมน์ ตรวจ Cell ว่างและตัวเลขแบบ Strict พร้อมแยกไทย–อังกฤษระดับคำและทำเครื่องหมายคำไทยอ่านยาก</p>
-    </section>
-    <section class="panel upload-panel">
-      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
-        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,image/bmp,application/pdf" multiple hidden>
-        <div class="upload-icon">↥</div>
-        <h2>ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</h2>
-        <p>PNG, JPG, WEBP, TIFF, BMP, PDF · สูงสุด 10 ไฟล์ · 50 MB ต่อไฟล์</p>
-        <div class="paste-tools">
-          <button id="pasteButton" class="secondary" type="button">วางรูปจากคลิปบอร์ด</button>
-          <span id="pasteHint" class="paste-hint">หรือกด <kbd>Ctrl</kbd> + <kbd>V</kbd> / <kbd>⌘</kbd> + <kbd>V</kbd></span>
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="hero-copy reveal-item">
+        <p class="eyebrow">PRIVATE BROWSER OCR</p>
+        <h1 id="heroTitle">เปลี่ยนภาพและ PDF<br><span>เป็นข้อความที่ตรวจแก้ได้</span></h1>
+      </div>
+
+      <div class="hero-visual reveal-item" aria-label="ภาพประกอบกระบวนการแปลง PDF เป็นข้อความด้วย OCR">
+        <div class="visual-stage" data-parallax-root>
+          <span class="visual-halo"></span>
+          <article class="visual-file source-file" data-depth="0.55">
+            <span class="file-fold"></span>
+            <span class="file-label">PDF</span>
+            <span class="file-line line-long"></span>
+            <span class="file-line"></span>
+            <span class="file-line line-short"></span>
+            <span class="scan-line"></span>
+          </article>
+
+          <div class="conversion-arrow" aria-hidden="true" data-depth="0.3">
+            <span></span>
+            <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+          </div>
+
+          <div class="ocr-badge" data-depth="0.45"><strong>OCR</strong><span></span></div>
+
+          <article class="visual-file result-file" data-depth="0.42">
+            <span class="file-fold"></span>
+            <span class="result-check"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></span>
+            <span class="file-line line-long"></span>
+            <span class="file-line"></span>
+            <span class="file-line line-short"></span>
+          </article>
+
+          <span class="floating-chip chip-pdf" data-depth="0.72">PDF</span>
+          <span class="floating-chip chip-jpg" data-depth="0.62">JPG</span>
+          <span class="floating-chip chip-png" data-depth="0.5">PNG</span>
         </div>
       </div>
-      <div class="feature-chips" aria-label="ความสามารถ">
-        <span>Verified Cell OCR</span><span>Empty Cell Protection</span><span>Numeric Strict</span><span>ไทย–อังกฤษระดับคำ</span><span>PWA Offline</span>
-      </div>
-      <div id="fileList" class="file-list"></div>
-      <div class="controls">
-        <label>ภาษา
-          <select id="language">
-            <option value="auto">ไทย + English</option>
-            <option value="th">ภาษาไทย</option>
-            <option value="en">English</option>
-            <option value="th+en">ไทย + English</option>
-          </select>
-        </label>
-        <button id="clearButton" class="secondary clear-button" type="button" disabled>ล้างรายการ</button>
-        <button id="runButton" class="primary" disabled><span>เริ่มแปลงข้อความ</span><span aria-hidden="true">→</span></button>
-      </div>
-      <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span></div>
-      <div id="error" class="error" hidden></div>
     </section>
+
+    <section class="upload-shell reveal-item" id="upload" aria-labelledby="uploadTitle">
+      <div class="panel upload-panel">
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,image/bmp,application/pdf" multiple hidden>
+          <div class="upload-art" aria-hidden="true">
+            <span class="mini-file mini-pdf">PDF</span>
+            <span class="mini-file mini-jpg">JPG</span>
+            <span class="mini-file mini-png">PNG</span>
+            <span class="upload-cloud">
+              <svg viewBox="0 0 64 64"><path d="M18 49h28a12 12 0 0 0 2.2-23.8A17 17 0 0 0 15.8 22 13.5 13.5 0 0 0 18 49Z"/><path d="M32 43V24m0 0-8 8m8-8 8 8"/></svg>
+            </span>
+          </div>
+          <h2 id="uploadTitle">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</h2>
+          <p>รองรับไฟล์ PNG, JPG, PDF</p>
+          <div class="upload-actions">
+            <button id="chooseFileButton" class="primary choose-file-button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5"/></svg>
+              <span>เลือกไฟล์</span>
+            </button>
+            <button id="pasteButton" class="secondary paste-button" type="button">วางรูปจากคลิปบอร์ด</button>
+          </div>
+          <span id="pasteHint" class="paste-hint">กด Ctrl+V หรือ ⌘+V เพื่อวางรูปภาพ</span>
+        </div>
+
+        <div id="fileList" class="file-list"></div>
+        <div class="controls">
+          <label>ภาษา OCR
+            <select id="language">
+              <option value="auto">ไทย + English</option>
+              <option value="th">ภาษาไทย</option>
+              <option value="en">English</option>
+              <option value="th+en">ไทย + English</option>
+            </select>
+          </label>
+          <button id="clearButton" class="secondary clear-button" type="button" disabled>ล้างรายการ</button>
+          <button id="runButton" class="primary run-button" type="button" disabled>
+            <span class="button-label">เริ่มแปลงข้อความ</span>
+            <span class="button-loader" aria-hidden="true"></span>
+            <svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+        <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span></div>
+        <div id="error" class="error" hidden></div>
+      </div>
+    </section>
+
+    <section class="feature-bar reveal-item" id="featureBar" aria-label="คุณสมบัติหลัก">
+      <article class="feature-item">
+        <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+        <strong>รวดเร็ว</strong>
+      </article>
+      <article class="feature-item">
+        <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <strong>ปลอดภัย 100%</strong>
+      </article>
+      <article class="feature-item">
+        <span class="feature-icon text-icon">Aa</span>
+        <strong>แม่นยำสูง</strong>
+      </article>
+      <article class="feature-item">
+        <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7V3Z"/><path d="M15 3v5h5M4 7v14h11"/></svg></span>
+        <strong>รองรับหลายไฟล์</strong>
+      </article>
+    </section>
+
     <section id="results" class="results" aria-live="polite"></section>
   </main>
-  <footer>ประมวลผลบนอุปกรณ์ของคุณ · ไม่อัปโหลดไฟล์ไปเก็บบนเซิร์ฟเวอร์ · ระบบไม่เดาชื่อ ตัวเลข รหัส หรือเติมข้อมูลลง Cell ว่าง</footer>
+
+  <footer id="siteFooter">RipScan — Thai–English OCR</footer>
+
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script type="module" src="/app.js"></script>
@@ -69,5 +182,6 @@
   <script type="module" src="/advanced.js"></script>
   <script type="module" src="/verified.js"></script>
   <script type="module" src="/verified-ui-fix.js"></script>
+  <script type="module" src="/theme-ui.js"></script>
 </body>
 </html>

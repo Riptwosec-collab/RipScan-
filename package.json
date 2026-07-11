@@ -1,11 +1,11 @@
 {
   "name": "ripscan-vercel",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/ocr-core.test.mjs",
-    "check": "node --check web/app.js && node --check web/upgrade.js && node --check web/advanced.js && node --check web/ocr-core.mjs && node --check web/verified.js && node --check web/verified-ui-fix.js && node --check web/sw.js",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check web/app.js && node --check web/upgrade.js && node --check web/advanced.js && node --check web/ocr-core.mjs && node --check web/verified.js && node --check web/verified-ui-fix.js && node --check web/theme-ui.js && node --check web/sw.js",
     "build": "npm test && npm run check && node build.mjs"
   },
   "engines": {
