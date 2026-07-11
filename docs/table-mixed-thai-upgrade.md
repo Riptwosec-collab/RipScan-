@@ -1,13 +1,3 @@
-ยี\nสารสนเทศ",
-          ""
-        ]
-      ],
-      "spans": []
-    }
-  }
-]
-<<<RIPSCAN_END>>>
-<<<RIPSCAN_FILE:docs/table-mixed-thai-upgrade.md>>>
 # Table OCR + Mixed Thai-English Verification Upgrade
 
 ## Scope implemented in v1.5
@@ -47,4 +37,41 @@ Users can choose:
 - Mark unverified cells with `[โปรดตรวจสอบ: ...]`.
 - Block export while red cells remain.
 
-CSV supports UTF-8 BOM, comma/semicolon/tab delimiters, quoted newlines, quoted delimiters, empty cells, Thai text, and leading-zero code
+CSV supports UTF-8 BOM, comma/semicolon/tab delimiters, quoted newlines, quoted delimiters, empty cells, Thai text, and leading-zero codes.
+
+## Tests
+
+`npm test` runs Node's built-in test runner against `tests/ocr-core.test.mjs`.
+
+The current suite covers 17 automated checks:
+
+- Thai-English segmentation and exact reassembly.
+- Strict email/URL/code preservation.
+- Thai Unicode and grapheme behavior.
+- Numeric/date/currency strict validation.
+- Column inference.
+- Empty-cell protection.
+- Cell-contamination detection.
+- Row consistency.
+- Repeated headers and multi-page continuation evidence.
+- Candidate ranking without invented candidates.
+- Stricter confidence thresholds for names/codes.
+- Difficult Thai review routing.
+- Structured spans and leading-zero preservation.
+- CSV escaping and empty cells.
+- CER/WER/Thai grapheme metrics.
+- A catalog of 25 synthetic, privacy-safe table ground-truth fixtures.
+
+## Accuracy reporting
+
+No production accuracy percentage is claimed. The repository now contains metric functions for CER, WER, Thai Grapheme Error Rate, cell status, contamination rate, and structure confidence. Real before/after accuracy requires a labeled image/PDF dataset and browser OCR runs. The synthetic fixtures validate structure and preservation rules, not real-world OCR accuracy.
+
+## Remaining limitations
+
+- Borderless-table detection is heuristic and works best when columns repeat at similar X positions across multiple rows.
+- Cell-level re-OCR from the review grid is not enabled unless the OCR result includes reliable source bounding boxes for that cell.
+- Line removal/inpainting variants are not yet applied to every cell; the existing line-table pipeline crops inside detected boundaries.
+- Google Vision and Azure comparisons are not available in the privacy-only Vercel mode.
+- Searchable PDF text overlay at exact cell coordinates is not implemented in this browser-only release.
+- Multi-page table continuation evidence is implemented in the core module, but automatic cross-page table merging remains opt-in/manual in the UI.
+- The 25 fixtures are synthetic structural ground truth; they do not include 25 rendered images.
