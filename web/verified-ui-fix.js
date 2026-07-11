@@ -1,19 +1,38 @@
-function applyVerifiedUiGuard() {
+const AUTO_VERIFIED_SETTINGS = Object.freeze({
+  tableMode: 'accurate',
+  exportPolicy: 'mark_review',
+  delimiter: ',',
+});
+
+function enforceAutomaticVerifiedSettings() {
+  try {
+    localStorage.setItem('ripscan-table-mode', AUTO_VERIFIED_SETTINGS.tableMode);
+    localStorage.setItem('ripscan-export-policy', AUTO_VERIFIED_SETTINGS.exportPolicy);
+    localStorage.setItem('ripscan-delimiter', AUTO_VERIFIED_SETTINGS.delimiter);
+  } catch {
+    // The verification layer still uses its built-in defaults when storage is unavailable.
+  }
+
   const panel = document.querySelector('.verified-controls');
-  const mode = panel?.querySelector('#tableMode');
-  if (!mode) return;
+  if (!panel) return;
 
-  const label = mode.closest('label');
-  if (label) {
-    label.innerHTML = '<span>การตรวจตาราง</span><input value="Verified Cell Review" disabled aria-label="โหมดตรวจตารางที่ใช้งานอยู่">';
-  }
+  const tableMode = panel.querySelector('#tableMode');
+  const exportPolicy = panel.querySelector('#verifiedExportPolicy');
+  const delimiter = panel.querySelector('#verifiedDelimiter');
 
-  const note = panel.querySelector('small');
-  if (note) {
-    note.textContent = 'ชั้นตรวจสอบนี้ไม่ย้ายข้อความข้าม Cell ไม่เติม Cell ว่าง และไม่เดาชื่อ ตัวเลข หรือรหัส · Manual Grid เต็มรูปแบบยังไม่เปิดในรุ่นนี้';
-  }
+  if (tableMode) tableMode.value = AUTO_VERIFIED_SETTINGS.tableMode;
+  if (exportPolicy) exportPolicy.value = AUTO_VERIFIED_SETTINGS.exportPolicy;
+  if (delimiter) delimiter.value = AUTO_VERIFIED_SETTINGS.delimiter;
+
+  panel.hidden = true;
+  panel.setAttribute('aria-hidden', 'true');
+  panel.style.display = 'none';
+
+  if ('inert' in panel) panel.inert = true;
 }
 
-const observer = new MutationObserver(applyVerifiedUiGuard);
+const observer = new MutationObserver(enforceAutomaticVerifiedSettings);
 observer.observe(document.documentElement, { childList: true, subtree: true });
-applyVerifiedUiGuard();
+enforceAutomaticVerifiedSettings();
+
+document.documentElement.dataset.verifiedSettings = 'automatic';

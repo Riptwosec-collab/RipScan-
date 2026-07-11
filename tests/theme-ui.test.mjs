@@ -45,14 +45,24 @@ test('theme UI persists selection and supports responsive menu', async () => {
   const js = await read('web/theme-ui.js');
   assert.ok(js.includes("localStorage.getItem('ripscan-theme')"));
   assert.ok(js.includes("localStorage.setItem('ripscan-theme'"));
-  assert.ok(js.includes("prefers-color-scheme: light"));
+  assert.ok(js.includes('prefers-color-scheme: light'));
   assert.ok(js.includes("mainNav.classList.remove('is-open')"));
-  assert.ok(js.includes("fileInput?.click()"));
+  assert.ok(js.includes('fileInput?.click()'));
+});
+
+test('verified table settings are automatic and hidden from users', async () => {
+  const js = await read('web/verified-ui-fix.js');
+  assert.ok(js.includes("tableMode: 'accurate'"));
+  assert.ok(js.includes("exportPolicy: 'mark_review'"));
+  assert.ok(js.includes("delimiter: ','"));
+  assert.ok(js.includes("panel.style.display = 'none'"));
+  assert.ok(js.includes("dataset.verifiedSettings = 'automatic'"));
 });
 
 test('PWA shell includes the redesign assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes("ripscan-pwa-v1.6.0"));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v1.6.1'));
   assert.ok(serviceWorker.includes("'/redesign.css'"));
   assert.ok(serviceWorker.includes("'/theme-ui.js'"));
+  assert.ok(serviceWorker.includes("'/verified-ui-fix.js'"));
 });
