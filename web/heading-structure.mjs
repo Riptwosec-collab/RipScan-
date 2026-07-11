@@ -56,7 +56,9 @@ export function detectHeading(line, context = {}) {
   const numbered = text.match(NUMBERED_HEADING);
   if (numbered && !SENTENCE_END.test(text)) {
     const body = numbered[2].trim();
-    if (body.length <= 72 && !isTableLike(body)) {
+    const explicitBody = THAI_HEADING.test(body) || ENGLISH_HEADING.test(body);
+    const ordinaryListItem = isListItem(text) && !explicitBody;
+    if (!ordinaryListItem && body.length <= 72 && !isTableLike(body)) {
       const depth = String(numbered[1]).split('.').length;
       return { isHeading: true, level: Math.min(4, depth + 1), confidence: 0.9, reason: 'numbered_heading' };
     }
