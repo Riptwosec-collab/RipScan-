@@ -1,0 +1,22 @@
+column) => structure.grid[0]?.[column]?.text || '');
+  const types = headers.map((header, column) => inferColumnType(header, structure.grid.slice(1).map(row => row?.[column]?.text || '')));
+  const issues = [];
+  structure.records.forEach(record => {
+    const text = normalizeThaiUnicode(record.text).normalizedText;
+    const columnType = types[record.columnIndex]?.type || 'mixed_text';
+    const neighbors = structure.records.filter(other => Math.abs(other.rowIndex - record.rowIndex) + Math.abs(other.columnIndex - record.columnIndex) === 1).map(other => other.text);
+    const empty = assessEmptyCell({ text, wordCount: text ? text.split(/\s+/).length : 0 });
+    const contamination = detectCellContamination({ text, neighboringTexts: neighbors, columnType, confidence: record.confidence });
+    const strictType = columnType === 'running_number' ? 'integer' : columnType;
+    const numeric = ['integer', 'decimal', 'currency', 'percentage', 'date', 'time'].includes(strictType) ? validateStrictNumber(text, strictType) : null;
+    const thai = difficultThaiIssues(text, { confidence: record.confidence, nearTableLine: true, smallCell: text.length > 30, dictionary: dictionary() });
+    const segments = segmentMixedLanguage(text);
+    const strictKind = strictPreservationKind(text);
+    const breakdown = confidenceBreakdown({ ocrConfidence: record.confidence, providerAgreement: record.confidence, scriptConfidence: segments.some(segment => segment.type === 'unknown') ? .55 : .96, imageQuality: record.confidence, dictionarySupport: thai.length ? .5 : 1, documentRepetitionSupport: .6, formatValidation: numeric ? (numeric.valid && !numeric.ambiguous ? 1 : .2) : strictKind ? 1 : .9, structureConflict: contamination.contaminated }, numeric ? 'numeric' : strictKind ? 'code' : thai.length ? 'difficult_thai' : 'general');
+    let status = 'verified';
+    const reasons = [];
+    if (empty.isEmpty) status = 'empty';
+    else if (empty.status === 'possibly_empty') { status = 'possibly_empty'; reasons.push('Cell อาจว่าง ระบบไม่เติมค่าให้'); }
+    if (contamination.contaminated) { status = 'contaminated'; reasons.push('อาจมีข้อความข้าม Cell หรือผิดประเภทคอลัมน์'); }
+    if (numeric && (!numeric.valid || numeric.ambiguous)) { status = 'manual_review_required'; reasons.push(numeric.ambiguous ? 'O/0 หรือ I/1 ยังตัดสินไม่ได้' : `รูปแบบ ${strictType} ไม่ถูกต้อง`); }
+    if (thai.length && status === 'verified') { status = 'review_recommended'; reasons.push('คำไทยยากหรือวรรณยุกต์อยู่ใกล้
