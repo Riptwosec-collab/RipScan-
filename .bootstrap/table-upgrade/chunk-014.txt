@@ -1,0 +1,27 @@
+e="th">ไทย</option><option value="en">อังกฤษ</option><option value="mixed">ไทยและอังกฤษ</option><option value="numeric">ตัวเลขและรหัส</option></select></label>`;
+  $('.page-language', view).value = page.dataset.languageOverride || 'auto';
+  $('.page-language', view).onchange = event => { page.dataset.languageOverride = event.target.value; };
+  view.onclick = event => { const button = event.target.closest('[data-word]'); if (button) { addDictionary(button.dataset.word); button.textContent = 'เพิ่มแล้ว'; } };
+  page.append(view);
+}
+
+function selectedPages(card) {
+  const ids = new Set($$('.thumbnail-card', card).filter(item => $('input', item)?.checked).map(item => item.dataset.pageId));
+  return $$('.page-card', card).filter(page => ids.has(page.dataset.managedId));
+}
+
+results.addEventListener('click', event => {
+  const bulk = event.target.closest('[data-verified-action="mixed"]');
+  if (bulk) { const pages = selectedPages(bulk.closest('.result-card')); if (!pages.length) return showError('กรุณาเลือกอย่างน้อย 1 หน้า'); pages.forEach(mixedReview); }
+  const pageButton = event.target.closest('[data-verified-page="mixed"]');
+  if (pageButton) mixedReview(pageButton.closest('.page-card'));
+});
+
+function scan() { installControls(); $$('.result-card', results).forEach(enhanceCard); $$('.analysis-panel', results).forEach(enhancePanel); }
+new MutationObserver(scan).observe(results, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-page-manager-ready'] });
+scan();
+document.documentElement.dataset.verifiedVersion = '1.5.0';
+
+<<<RIPSCAN_END>>>
+<<<RIPSCAN_FILE:web/verified.css>>>
+.verified-global-controls{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin-top:12px;padding:14px;border:1px solid rgba(56,189,248,.24);border-radius:16px;background:rgba(8,47,73,.26)}.verified-global-controls label{display:grid;gap:6px}.verified-global-controls small{grid-column:1/-1;color:#94a3b8}.verified-review,.mixed-page-review{margin-top:16px;padding:16px;border:1px solid rgba(167,139,250,.28);border-radius:18px;background:linear-gradient(145deg,rgba(30,27,75,.42),rgba(15,23,42,.78))}.verified-review-head,.mixed-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.verified-review-head>div:first-child{display:grid;gap:3px}.verified-review-head small{color:#94a3b8}.verified-metrics,.mixed-summary{display:flex;gap:8px;flex-wrap:wrap}.verified-metrics span,.mixed-summary span{padding:6px 9px;bo
