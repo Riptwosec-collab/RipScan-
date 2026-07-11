@@ -1,0 +1,50 @@
+ยี\nสารสนเทศ",
+          ""
+        ]
+      ],
+      "spans": []
+    }
+  }
+]
+<<<RIPSCAN_END>>>
+<<<RIPSCAN_FILE:docs/table-mixed-thai-upgrade.md>>>
+# Table OCR + Mixed Thai-English Verification Upgrade
+
+## Scope implemented in v1.5
+
+This upgrade adds a browser-side verification layer without sending documents to a server.
+
+### Table verification
+
+- Validates column types from headers and repeated values.
+- Strict validation for integer, decimal, currency, percentage, date, and time cells.
+- Protects empty and possibly-empty cells; placeholders such as `0`, `O`, `-`, and `.` are not silently accepted as values.
+- Detects likely cross-cell contamination using neighboring text, column type, confidence, and available bounding-box evidence.
+- Preserves row span, column span, multiline text, empty cells, and leading-zero codes in structured exports.
+- Adds a table review tab with cell status, reasons, confidence summary, and direct navigation to problematic cells.
+- Adds Manual Grid controls: merge, split, add/delete row or column, mark empty, undo, and redo.
+- Adds structured CSV, XLSX, DOCX-table, and JSON exports from the edited grid.
+- Adds borderless-table detection based on OCR word bounding boxes, repeated alignment, repeated large gaps across rows, and vertical line clustering. It does not use whitespace count alone.
+
+### Thai-English verification
+
+- Detects Thai, English, numbers, email, URL, document code, punctuation, and mixed text at token/segment level.
+- Preserves the original text when segments are joined.
+- Adds Thai Unicode normalization with an audit list; does not convert Thai digits or rewrite spelling.
+- Adds Thai grapheme-cluster validation for duplicated or orphaned vowels/tone marks.
+- Routes difficult Thai words and words near table boundaries to review.
+- Adds document-local vocabulary and a user-controlled custom dictionary stored in localStorage.
+- Uses candidate ranking only on supplied candidates. The ranking function cannot generate a new candidate.
+- Adds strict-preservation checks for email, URL, phone, file path, version, and document code.
+- Adds configurable manual language override for a page or selected table cell.
+
+### Export policy
+
+Users can choose:
+
+- Export all text.
+- Export verified text only.
+- Mark unverified cells with `[โปรดตรวจสอบ: ...]`.
+- Block export while red cells remain.
+
+CSV supports UTF-8 BOM, comma/semicolon/tab delimiters, quoted newlines, quoted delimiters, empty cells, Thai text, and leading-zero code
