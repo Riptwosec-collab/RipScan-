@@ -1,0 +1,10 @@
+services:
+  ripscan:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MAX_FILE_SIZE_MB: 50
+      MAX_FILES_PER_UPLOAD: 10
+      ALLOWED_ORIGINS: http://localhost:8000
+    restart: unless-stopped

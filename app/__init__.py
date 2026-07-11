@@ -1,0 +1,1 @@
+"""RipScan OCR application."""

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RipScan — Thai-English OCR</title>
+  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">R</span><span><strong>RipScan</strong><small>Thai–English OCR</small></span></a>
+    <div id="health" class="health"><span class="dot"></span><span>กำลังตรวจระบบ</span></div>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">LOCAL-FIRST DOCUMENT TOOL</p>
+      <h1>เปลี่ยนภาพและ PDF<br><span>เป็นข้อความที่ตรวจแก้ได้</span></h1>
+      <p class="subtitle">รองรับภาษาไทยและอังกฤษ ใช้ Text Layer ของ PDF ก่อน และใช้ Tesseract OCR เมื่อเอกสารเป็นภาพสแกน</p>
+    </section>
+    <section class="panel upload-panel">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button">
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,image/bmp,application/pdf" multiple hidden>
+        <div class="upload-icon">↥</div>
+        <h2>ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</h2>
+        <p>PNG, JPG, WEBP, TIFF, BMP, PDF · สูงสุด 10 ไฟล์ · 50 MB ต่อไฟล์</p>
+      </div>
+      <div id="fileList" class="file-list"></div>
+      <div class="controls">
+        <label>ภาษา
+          <select id="language">
+            <option value="auto">ตรวจไทย + อังกฤษอัตโนมัติ</option>
+            <option value="th">ภาษาไทย</option>
+            <option value="en">English</option>
+            <option value="th+en">ไทย + English</option>
+          </select>
+        </label>
+        <button id="runButton" class="primary" disabled><span>เริ่มแปลงข้อความ</span><span aria-hidden="true">→</span></button>
+      </div>
+      <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span></div>
+      <div id="error" class="error" hidden></div>
+    </section>
+    <section id="results" class="results" aria-live="polite"></section>
+  </main>
+  <footer>ไฟล์ถูกประมวลผลในหน่วยความจำและไม่ถูกเก็บถาวร · ตรวจข้อความสำคัญกับต้นฉบับทุกครั้ง</footer>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
