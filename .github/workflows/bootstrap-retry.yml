@@ -1,0 +1,43 @@
+name: Bootstrap source tree retry
+
+on:
+  push:
+    branches:
+      - agent/upload-ocr-verify-pro
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/upload-ocr-verify-pro
+          fetch-depth: 0
+
+      - name: Restore and clean source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          if compgen -G '.bootstrap/chunk-*' > /dev/null; then
+            cat .bootstrap/chunk-* > /tmp/source.tar.gz.b64
+            base64 --decode /tmp/source.tar.gz.b64 > /tmp/source.tar.gz
+            echo "7ce7a305abe5a3655576f6e2488b827c043bf2858accbc5812ec77e041f9f192  /tmp/source.tar.gz" | sha256sum --check -
+            tar -xzf /tmp/source.tar.gz
+          fi
+          rm -rf .bootstrap
+          rm -f .github/workflows/bootstrap.yml .github/workflows/bootstrap-retry.yml
+          rmdir .github/workflows 2>/dev/null || true
+          rmdir .github 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: add Thai-English OCR Verify Pro"
+            git push origin HEAD:agent/upload-ocr-verify-pro
+          fi
