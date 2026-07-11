@@ -1,0 +1,53 @@
+es('ๆ'));
+  assert.ok(result.normalizedText.includes('ฯ'));
+});
+
+test('Thai grapheme analyzer keeps combining marks with base', () => {
+  const graphemes = thaiGraphemes('เจ้าหน้าที่');
+  assert.ok(graphemes.length < [...'เจ้าหน้าที่'].length);
+  assert.equal(analyzeThaiGraphemes('เจ้าหน้าที่').valid, true);
+});
+
+test('numeric strict mode flags ambiguity and validates formats', () => {
+  assert.equal(validateStrictNumber('1,250.00', 'currency').valid, true);
+  assert.equal(validateStrictNumber('(1,200.00)', 'currency').valid, true);
+  assert.equal(validateStrictNumber('7.5%', 'percentage').valid, true);
+  assert.equal(validateStrictNumber('11/07/2569', 'date').valid, true);
+  assert.equal(validateStrictNumber('O8.30', 'time').ambiguous, true);
+});
+
+test('column type inference uses header and value evidence', () => {
+  assert.equal(inferColumnType('จำนวนเงิน', ['1,250.00', '500.00']).type, 'currency');
+  assert.equal(inferColumnType('', ['a@example.com', 'b@example.com']).type, 'email');
+});
+
+test('empty-cell protection does not invent placeholders', () => {
+  const empty = assessEmptyCell({ text: '', foregroundRatio: 0.002, connectedComponents: 0, wordCount: 0 });
+  assert.equal(empty.isEmpty, true);
+  const suspicious = assessEmptyCell({ text: '-', foregroundRatio: 0.003, connectedComponents: 1, wordCount: 0 });
+  assert.ok(['empty', 'possibly_empty'].includes(suspicious.status));
+});
+
+test('contamination detector catches numeric column leakage', () => {
+  const result = detectCellContamination({ text: 'ฝ่ายบัญชี 25', columnType: 'currency', neighboringTexts: ['ฝ่ายบัญชี'], confidence: 0.8 });
+  assert.equal(result.contaminated, true);
+  assert.ok(result.reasons.includes('column_type_mismatch'));
+});
+
+test('row consistency detects missing cells', () => {
+  const result = validateRowConsistency([[1, 2, 3], [1, 2], [1, 2, 3]]);
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some(issue => issue.type === 'missing_cell'));
+});
+
+test('repeated headers and table continuation are detected without duplicating data', () => {
+  const header = ['ลำดับ', 'ชื่อ', 'จำนวน'];
+  assert.equal(detectRepeatedHeader(header, header).repeated, true);
+  const continuation = detectTableContinuation(
+    { columnCount: 3, columnWidths: [10, 50, 20], header, lastRunningNumber: 25 },
+    { columnCount: 3, columnWidths: [10, 49, 21], header, firstRunningNumber: 26 },
+  );
+  assert.equal(continuation.continuation, true);
+});
+
+test('candidate ranker never creates a candi
