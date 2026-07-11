@@ -8,13 +8,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RipScan">
   <title>RipScan — Thai-English OCR</title>
-  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ พร้อม OCR Worker Pool ตรวจตาราง แบบฟอร์ม และโหมดออฟไลน์">
+  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ พร้อมตรวจตารางระดับ Cell, Numeric Strict, คำไทยอ่านยาก และโหมดออฟไลน์">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon-192.svg">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/upgrade.css">
   <link rel="stylesheet" href="/advanced.css">
+  <link rel="stylesheet" href="/verified.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -24,9 +25,9 @@
   </header>
   <main>
     <section class="hero">
-      <p class="eyebrow">PRIVATE BROWSER OCR · PWA</p>
-      <h1>เปลี่ยนภาพและ PDF<br><span>เป็นเอกสารที่จัดการได้</span></h1>
-      <p class="subtitle">Tesseract.js 7 พร้อม Worker Pool สูงสุด 2 งาน ตรวจตารางก่อน OCR อ่านแยก Cell รองรับ Checkbox/แบบฟอร์ม และติดตั้งใช้งานออฟไลน์ได้หลังเตรียมโมเดลภาษา</p>
+      <p class="eyebrow">PRIVATE BROWSER OCR · VERIFIED TABLE · PWA</p>
+      <h1>เปลี่ยนภาพและ PDF<br><span>เป็นเอกสารที่ตรวจสอบได้</span></h1>
+      <p class="subtitle">Tesseract.js 7 พร้อม Worker Pool ตรวจตารางแยก Cell ป้องกันข้อมูลข้ามคอลัมน์ ตรวจ Cell ว่างและตัวเลขแบบ Strict พร้อมแยกไทย–อังกฤษระดับคำและทำเครื่องหมายคำไทยอ่านยาก</p>
     </section>
     <section class="panel upload-panel">
       <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
@@ -40,7 +41,7 @@
         </div>
       </div>
       <div class="feature-chips" aria-label="ความสามารถ">
-        <span>Tesseract.js 7</span><span>Worker Pool 2 งาน</span><span>ตรวจตารางก่อน OCR</span><span>อ่านแยก Cell</span><span>PWA Offline</span>
+        <span>Verified Cell OCR</span><span>Empty Cell Protection</span><span>Numeric Strict</span><span>ไทย–อังกฤษระดับคำ</span><span>PWA Offline</span>
       </div>
       <div id="fileList" class="file-list"></div>
       <div class="controls">
@@ -60,11 +61,12 @@
     </section>
     <section id="results" class="results" aria-live="polite"></section>
   </main>
-  <footer>ประมวลผลบนอุปกรณ์ของคุณ · ไม่อัปโหลดไฟล์ไปเก็บบนเซิร์ฟเวอร์ · ตารางถูกตรวจโครงสร้างก่อน OCR และไม่สร้างข้อมูลที่ตรวจไม่พบ</footer>
+  <footer>ประมวลผลบนอุปกรณ์ของคุณ · ไม่อัปโหลดไฟล์ไปเก็บบนเซิร์ฟเวอร์ · ระบบไม่เดาชื่อ ตัวเลข รหัส หรือเติมข้อมูลลง Cell ว่าง</footer>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/upgrade.js"></script>
   <script type="module" src="/advanced.js"></script>
+  <script type="module" src="/verified.js"></script>
 </body>
 </html>
