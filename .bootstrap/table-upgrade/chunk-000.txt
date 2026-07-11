@@ -1,0 +1,57 @@
+<<<RIPSCAN_FILE:web/ocr-core.mjs>>>
+const THAI_RE = /[\u0E00-\u0E7F]/u;
+const EN_RE = /[A-Za-z]/;
+const DIGIT_RE = /[0-9๐-๙]/u;
+const MARK_RE = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/u;
+const EMAIL_RE = /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+const URL_RE = /^(?:https?:\/\/|www\.)[^\s]+$/i;
+const CODE_RE = /^(?=.*[A-Za-z0-9])[A-Za-z0-9][A-Za-z0-9._:/\\#-]*$/;
+const PHONE_RE = /^\+?[0-9๐-๙][0-9๐-๙\s().-]{5,}$/u;
+
+const THAI_LEADING_VOWELS = new Set(['เ', 'แ', 'โ', 'ใ', 'ไ']);
+const THAI_TONE_MARKS = new Set(['่', '้', '๊', '๋']);
+const THAI_UPPER_VOWELS = new Set(['ั', 'ิ', 'ี', 'ึ', 'ื', '็']);
+const THAI_LOWER_VOWELS = new Set(['ุ', 'ู']);
+const THAI_SPECIAL_MARKS = new Set(['์', 'ํ', 'ฺ']);
+const DIFFICULT_THAI_WORDS = new Set([
+  'เทคโนโลยี', 'อิเล็กทรอนิกส์', 'ประสิทธิภาพ', 'สิทธิประโยชน์', 'พระราชบัญญัติ',
+  'ทรัพย์สิน', 'พาณิชย์', 'อัตลักษณ์', 'ยุทธศาสตร์', 'สาธารณูปโภค', 'วิเคราะห์',
+  'อนุมัติ', 'หลักเกณฑ์', 'เจ้าหน้าที่', 'ผู้รับผิดชอบ',
+]);
+
+export function clamp(value, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, Number(value) || 0));
+}
+
+export function normalizeThaiUnicode(input) {
+  const rawText = String(input ?? '');
+  const changes = [];
+  let normalizedText = rawText.normalize('NFC');
+  if (normalizedText !== rawText) changes.push({ type: 'unicode_nfc', before: rawText, after: normalizedText });
+
+  const withoutZeroWidth = normalizedText.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+  if (withoutZeroWidth !== normalizedText) {
+    changes.push({ type: 'remove_zero_width', before: normalizedText, after: withoutZeroWidth });
+    normalizedText = withoutZeroWidth;
+  }
+
+  const dedupedMarks = normalizedText.replace(/([่้๊๋์ํ])\1+/gu, '$1');
+  if (dedupedMarks !== normalizedText) {
+    changes.push({ type: 'dedupe_combining_mark', before: normalizedText, after: dedupedMarks });
+    normalizedText = dedupedMarks;
+  }
+
+  return { rawText, normalizedText, displayText: normalizedText, normalizationChanges: changes };
+}
+
+export function thaiGraphemes(text) {
+  const value = String(text ?? '');
+  if (!value) return [];
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter('th', { granularity: 'grapheme' });
+    return [...segmenter.segment(value)].map(item => item.segment);
+  }
+  const result = [];
+  for (const char of value) {
+    if (MARK_RE.test(char) && result.length) result[result.length - 1] += char;
+    else result.push(
