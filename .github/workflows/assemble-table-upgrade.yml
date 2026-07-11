@@ -1,0 +1,49 @@
+name: Assemble table OCR upgrade
+
+on:
+  push:
+    branches:
+      - upgrade/table-mixed-thai-verified
+    paths:
+      - '.bootstrap/table-upgrade/**'
+      - '.github/workflows/assemble-table-upgrade.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upgrade/table-mixed-thai-verified
+          fetch-depth: 0
+
+      - name: Restore source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .bootstrap/table-upgrade/chunk-*.txt > /tmp/ripscan-bundle.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          data = Path('/tmp/ripscan-bundle.txt').read_text(encoding='utf-8')
+          pattern = re.compile(r'<<<RIPSCAN_FILE:(.*?)>>>\n(.*?)\n<<<RIPSCAN_END>>>\n?', re.S)
+          matches = pattern.findall(data)
+          if len(matches) != 6:
+              raise SystemExit(f'expected 6 files, found {len(matches)}')
+
+          for raw_path, content in matches:
+              path = Path(raw_path)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(content, encoding='utf-8')
+              print(path)
+          PY
+          rm -rf .bootstrap/table-upgrade
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add verified table and mixed-language OCR core"
+          git push origin HEAD:upgrade/table-mixed-thai-verified
