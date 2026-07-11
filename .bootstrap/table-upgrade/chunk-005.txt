@@ -1,0 +1,51 @@
+export function detectRepeatedHeader(firstHeader, candidateHeader, threshold = 0.88) {
+  const a = (firstHeader || []).map(value => String(value).trim().toLowerCase());
+  const b = (candidateHeader || []).map(value => String(value).trim().toLowerCase());
+  if (!a.length || a.length !== b.length) return { repeated: false, similarity: 0 };
+  let score = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] === b[index]) score += 1;
+    else if (a[index] && b[index] && (a[index].includes(b[index]) || b[index].includes(a[index]))) score += 0.65;
+  }
+  const similarity = score / a.length;
+  return { repeated: similarity >= threshold, similarity };
+}
+
+export function detectTableContinuation(previous, next) {
+  if (!previous || !next) return { continuation: false, confidence: 0, reasons: ['missing_table'] };
+  const reasons = [];
+  let score = 0;
+  if (previous.columnCount === next.columnCount) { score += 0.35; reasons.push('same_column_count'); }
+  if (Array.isArray(previous.columnWidths) && Array.isArray(next.columnWidths) && previous.columnWidths.length === next.columnWidths.length) {
+    const widthAgreement = previous.columnWidths.reduce((sum, width, index) => {
+      const other = next.columnWidths[index] || 1;
+      return sum + Math.max(0, 1 - Math.abs(width - other) / Math.max(width, other, 1));
+    }, 0) / Math.max(1, previous.columnWidths.length);
+    score += widthAgreement * 0.25;
+    if (widthAgreement > 0.85) reasons.push('column_widths_match');
+  }
+  const header = detectRepeatedHeader(previous.header || [], next.header || []);
+  if (header.repeated) { score += 0.25; reasons.push('repeated_header'); }
+  if (Number.isFinite(previous.lastRunningNumber) && Number.isFinite(next.firstRunningNumber) && next.firstRunningNumber === previous.lastRunningNumber + 1) {
+    score += 0.15; reasons.push('running_number_continues');
+  }
+  return { continuation: score >= 0.68, confidence: clamp(score), reasons };
+}
+
+export function confidenceBreakdown(evidence = {}, entityType = 'general') {
+  const weights = {
+    ocrConfidence: 0.31,
+    providerAgreement: 0.2,
+    scriptConfidence: 0.13,
+    imageQuality: 0.1,
+    dictionarySupport: 0.08,
+    documentRepetitionSupport: 0.08,
+    formatValidation: 0.1,
+  };
+  const normalized = {};
+  let finalConfidence = 0;
+  for (const [key, weight] of Object.entries(weights)) {
+    normalized[key] = clamp(evidence[key] ?? 0);
+    finalConfidence += normalized[key] * weight;
+  }
+  const thresholds = { gener
