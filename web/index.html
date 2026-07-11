@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RipScan — Thai-English OCR</title>
-  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษในเบราว์เซอร์">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
     <a class="brand" href="/"><span class="brand-mark">R</span><span><strong>RipScan</strong><small>Thai–English OCR</small></span></a>
-    <div id="health" class="health"><span class="dot"></span><span>กำลังตรวจระบบ</span></div>
+    <div id="health" class="health"><span class="dot"></span><span>กำลังโหลด OCR</span></div>
   </header>
   <main>
     <section class="hero">
-      <p class="eyebrow">LOCAL-FIRST DOCUMENT TOOL</p>
+      <p class="eyebrow">PRIVATE BROWSER OCR</p>
       <h1>เปลี่ยนภาพและ PDF<br><span>เป็นข้อความที่ตรวจแก้ได้</span></h1>
-      <p class="subtitle">รองรับภาษาไทยและอังกฤษ ใช้ Text Layer ของ PDF ก่อน และใช้ Tesseract OCR เมื่อเอกสารเป็นภาพสแกน</p>
+      <p class="subtitle">รองรับภาษาไทยและอังกฤษ อ่าน Text Layer จาก PDF ก่อน และใช้ OCR ในเบราว์เซอร์เมื่อเอกสารเป็นภาพสแกน โดยไม่อัปโหลดไฟล์ไปเก็บบนเซิร์ฟเวอร์</p>
     </section>
     <section class="panel upload-panel">
       <div id="dropzone" class="dropzone" tabindex="0" role="button">
@@ -30,7 +30,7 @@
       <div class="controls">
         <label>ภาษา
           <select id="language">
-            <option value="auto">ตรวจไทย + อังกฤษอัตโนมัติ</option>
+            <option value="auto">ไทย + English</option>
             <option value="th">ภาษาไทย</option>
             <option value="en">English</option>
             <option value="th+en">ไทย + English</option>
@@ -43,7 +43,8 @@
     </section>
     <section id="results" class="results" aria-live="polite"></section>
   </main>
-  <footer>ไฟล์ถูกประมวลผลในหน่วยความจำและไม่ถูกเก็บถาวร · ตรวจข้อความสำคัญกับต้นฉบับทุกครั้ง</footer>
-  <script src="/assets/app.js" defer></script>
+  <footer>ประมวลผลบนอุปกรณ์ของคุณ · ไฟล์ไม่ถูกอัปโหลดไปเก็บบนเซิร์ฟเวอร์ · ตรวจข้อความสำคัญกับต้นฉบับทุกครั้ง</footer>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
