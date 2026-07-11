@@ -13,11 +13,13 @@
     (() => {
       try {
         const saved = localStorage.getItem('ripscan-theme');
-        const theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        const theme = saved === 'light' ? 'light' : 'dark';
+        if (saved !== 'light' && saved !== 'dark') localStorage.setItem('ripscan-theme', 'dark');
         document.documentElement.dataset.theme = theme;
         document.documentElement.style.colorScheme = theme;
       } catch {
         document.documentElement.dataset.theme = 'dark';
+        document.documentElement.style.colorScheme = 'dark';
       }
     })();
   </script>
@@ -175,13 +177,19 @@
 
   <footer id="siteFooter">RipScan — Thai–English OCR</footer>
 
+  <div id="automaticVerifiedSettings" hidden aria-hidden="true">
+    <input id="tableMode" type="hidden" value="accurate">
+    <input id="verifiedExportPolicy" type="hidden" value="mark_review">
+    <input id="verifiedDelimiter" type="hidden" value=",">
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/upgrade.js"></script>
   <script type="module" src="/advanced.js"></script>
-  <script type="module" src="/verified.js"></script>
   <script type="module" src="/verified-ui-fix.js"></script>
+  <script type="module" src="/verified.js"></script>
   <script type="module" src="/theme-ui.js"></script>
 </body>
 </html>
