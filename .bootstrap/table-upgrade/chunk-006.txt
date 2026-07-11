@@ -1,0 +1,42 @@
+al: 0.94, difficult_thai: 0.96, person_name: 0.98, numeric: 0.985, code: 0.985 };
+  const threshold = thresholds[entityType] || thresholds.general;
+  const requiresManualReview = finalConfidence < threshold || evidence.structureConflict === true || evidence.providerConflict === true;
+  return { ...normalized, finalConfidence: clamp(finalConfidence), threshold, entityType, requiresManualReview };
+}
+
+export function rankCandidates(candidates, context = {}) {
+  const allowed = new Set((candidates || []).map(candidate => candidate.text));
+  const ranked = (candidates || []).map(candidate => {
+    const evidence = candidate.evidence || {};
+    let score = clamp(candidate.ocrConfidence ?? candidate.score ?? 0) * 0.42;
+    score += clamp(evidence.providerAgreement) * 0.22;
+    score += clamp(evidence.imageMatch) * 0.18;
+    score += clamp(evidence.documentRepetition) * 0.08;
+    score += clamp(evidence.dictionarySupport) * 0.05;
+    score += clamp(evidence.formatValidation) * 0.05;
+    if (context.strictPreservation && candidate.text !== context.originalText) score -= 0.25;
+    if (context.personName && !evidence.imageMatch) score -= 0.2;
+    return { ...candidate, score: clamp(score), allowed: allowed.has(candidate.text) };
+  }).sort((a, b) => b.score - a.score);
+  const selected = ranked[0];
+  const runnerUp = ranked[1];
+  const conflict = selected && runnerUp && selected.score - runnerUp.score < 0.08;
+  return {
+    candidates: ranked.slice(0, 5),
+    selectedCandidate: selected && !conflict && selected.score >= (context.minimumScore ?? 0.82) ? selected.text : null,
+    status: !selected || conflict || selected.score < (context.minimumScore ?? 0.82) ? 'needs_manual_review' : 'verified',
+    needsManualReview: !selected || conflict || selected.score < (context.minimumScore ?? 0.82),
+    reason: conflict ? 'candidate_scores_too_close' : selected ? 'ranked_from_existing_candidates_only' : 'no_candidate',
+  };
+}
+
+export function difficultThaiIssues(text, { confidence = 1, nearTableLine = false, smallCell = false, dictionary = [] } = {}) {
+  const tokens = String(text ?? '').match(/[\u0E00-\u0E7F]+/gu) || [];
+  const dictionarySet = new Set(dictionary);
+  const issues = [];
+  for (const word of tokens) {
+    const grapheme = analyzeThaiGraphemes(word);
+    const difficult = DIFFICULT_THAI_WORDS.has(word) || [...word].some(char => MARK_RE.test(char)) || word.length >= 10;
+    const reasons = [];
+    if (confidence < 0.96) reasons.push('confidence_below_0_96');
+    i
