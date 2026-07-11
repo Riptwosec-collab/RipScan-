@@ -1,0 +1,55 @@
+f (!grapheme.valid) reasons.push('grapheme_issue');
+    if (nearTableLine) reasons.push('near_table_line');
+    if (smallCell) reasons.push('small_cell');
+    if (difficult && !dictionarySet.has(word)) reasons.push('difficult_or_unknown_word');
+    if (reasons.length) issues.push({ word, reasons, status: confidence < 0.75 || !grapheme.valid ? 'manual_review_required' : 'review_recommended' });
+  }
+  return issues;
+}
+
+export function buildTableModel(matrix, options = {}) {
+  const rows = (matrix || []).map((row, rowIndex) => ({
+    rowIndex,
+    cells: row.map((cell, columnIndex) => {
+      const source = typeof cell === 'object' && cell !== null ? cell : { text: cell };
+      return {
+        cellId: source.cellId || `cell-r${rowIndex}-c${columnIndex}`,
+        rowIndex,
+        columnIndex,
+        rowSpan: Number(source.rowSpan || source.rowspan || 1),
+        columnSpan: Number(source.columnSpan || source.colspan || 1),
+        text: String(source.text ?? ''),
+        textWithLineBreaks: String(source.text ?? ''),
+        singleLineText: String(source.text ?? '').replace(/\s*\n\s*/g, ' ').trim(),
+        confidence: clamp(source.confidence ?? 0),
+        status: source.status || 'unknown',
+        cellType: source.cellType || (rowIndex === 0 ? 'header' : 'body'),
+      };
+    }),
+  }));
+  return { tableId: options.tableId || 'table-1', page: options.page || 1, rows };
+}
+
+export function exportDelimited(matrix, delimiter = ',', { bom = true } = {}) {
+  const encode = value => {
+    const text = String(value ?? '');
+    const escaped = text.replace(/"/g, '""');
+    return /["\r\n]/.test(text) || text.includes(delimiter) ? `"${escaped}"` : text;
+  };
+  const body = (matrix || []).map(row => row.map(encode).join(delimiter)).join('\r\n');
+  return `${bom ? '\uFEFF' : ''}${body}`;
+}
+
+export function calculateTextMetrics(expected, actual) {
+  const a = [...String(expected ?? '')];
+  const b = [...String(actual ?? '')];
+  const distance = levenshtein(a, b);
+  const graphemeExpected = thaiGraphemes(expected);
+  const graphemeActual = thaiGraphemes(actual);
+  const graphemeDistance = levenshtein(graphemeExpected, graphemeActual);
+  const expectedWords = String(expected ?? '').trim().split(/\s+/).filter(Boolean);
+  const actualWords = String(actual ?? '').trim().split(/\s+/).filter(Boolean);
+  const wordDistance = levenshtein(expectedWords, actualWords);
+  return {
+    cer: distance / Math.max(1, a.length),
+    wer: wordDistance / Math.max(1, expectedWords.length)
