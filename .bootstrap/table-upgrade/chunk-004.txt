@@ -1,0 +1,39 @@
+core >= 0.78;
+  const possiblyEmpty = !isEmpty && score >= 0.52;
+  return { isEmpty, confidence: score, status: isEmpty ? 'empty' : possiblyEmpty ? 'possibly_empty' : 'not_empty', preserveOriginalText: !isEmpty };
+}
+
+export function detectCellContamination({ text = '', bbox = null, cellBox = null, neighboringTexts = [], columnType = 'mixed_text', confidence = 1 } = {}) {
+  const reasons = [];
+  if (bbox && cellBox) {
+    const centerX = (bbox.x0 + bbox.x1) / 2;
+    const centerY = (bbox.y0 + bbox.y1) / 2;
+    if (centerX < cellBox.x || centerX > cellBox.x + cellBox.width || centerY < cellBox.y || centerY > cellBox.y + cellBox.height) reasons.push('word_center_outside_cell');
+    const overflow = bbox.x0 < cellBox.x - 2 || bbox.x1 > cellBox.x + cellBox.width + 2 || bbox.y0 < cellBox.y - 2 || bbox.y1 > cellBox.y + cellBox.height + 2;
+    if (overflow) reasons.push('bounding_box_overflow');
+  }
+  const normalized = String(text).trim().toLowerCase();
+  if (normalized && neighboringTexts.some(value => String(value).trim().toLowerCase() === normalized)) reasons.push('duplicates_neighbor');
+  if (['integer', 'decimal', 'currency', 'percentage', 'date', 'time', 'running_number'].includes(columnType)) {
+    const strictType = columnType === 'running_number' ? 'integer' : columnType;
+    if (!validateStrictNumber(text, strictType).valid) reasons.push('column_type_mismatch');
+  }
+  if (Number(confidence) < 0.55) reasons.push('low_confidence');
+  return { contaminated: reasons.length > 0, reasons, status: reasons.length ? 'contaminated' : 'verified' };
+}
+
+export function validateRowConsistency(rows) {
+  const normalized = (rows || []).map((row, rowIndex) => ({ rowIndex, cells: row.cells || row }));
+  const widths = normalized.map(row => row.cells.length);
+  const expectedColumns = widths.length ? widths.sort((a, b) => a - b)[Math.floor(widths.length / 2)] : 0;
+  const issues = [];
+  for (const row of normalized) {
+    if (row.cells.length !== expectedColumns) issues.push({ rowIndex: row.rowIndex, type: row.cells.length < expectedColumns ? 'missing_cell' : 'extra_cell', actual: row.cells.length, expected: expectedColumns });
+    row.cells.forEach((cell, columnIndex) => {
+      if (cell?.rowShiftSuspected) issues.push({ rowIndex: row.rowIndex, columnIndex, type: 'row_shift' });
+      if (cell?.columnShiftSuspected) issues.push({ rowIndex: row.rowIndex, columnIndex, type: 'column_shift' });
+    });
+  }
+  return { expectedColumns, issues, valid: issues.length === 0 };
+}
+
