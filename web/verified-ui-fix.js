@@ -1,3 +1,5 @@
+import './heading-auto.js';
+
 const AUTO_VERIFIED_SETTINGS = Object.freeze({
   tableMode: 'accurate',
   exportPolicy: 'mark_review',

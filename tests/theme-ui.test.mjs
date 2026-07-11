@@ -70,10 +70,12 @@ test('verified table settings run automatically without rendering controls', asy
   assert.ok(js.includes("dataset.verifiedSettings = 'automatic'"));
 });
 
-test('PWA shell includes the redesign assets', async () => {
+test('PWA shell includes redesign and automatic heading assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v1.6.2'));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v1.6.3'));
   assert.ok(serviceWorker.includes("'/redesign.css'"));
   assert.ok(serviceWorker.includes("'/theme-ui.js'"));
   assert.ok(serviceWorker.includes("'/verified-ui-fix.js'"));
+  assert.ok(serviceWorker.includes("'/heading-auto.js'"));
+  assert.ok(serviceWorker.includes("'/heading-structure.mjs'"));
 });

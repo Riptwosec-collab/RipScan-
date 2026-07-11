@@ -1,4 +1,4 @@
-const VERSION = 'ripscan-pwa-v1.6.2';
+const VERSION = 'ripscan-pwa-v1.6.3';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -15,6 +15,8 @@ const APP_SHELL = [
   '/ocr-core.mjs',
   '/verified.js',
   '/verified-ui-fix.js',
+  '/heading-auto.js',
+  '/heading-structure.mjs',
   '/theme-ui.js',
   '/manifest.webmanifest',
   '/icon-192.svg',
