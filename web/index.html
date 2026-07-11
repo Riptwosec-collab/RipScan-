@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RipScan — Thai-English OCR</title>
-  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษในเบราว์เซอร์">
+  <meta name="description" content="แปลงภาพและ PDF เป็นข้อความไทย–อังกฤษ พร้อมปรับภาพอัตโนมัติและหน้าตรวจแก้แบบภาพคู่ข้อความ">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -17,7 +17,7 @@
     <section class="hero">
       <p class="eyebrow">PRIVATE BROWSER OCR</p>
       <h1>เปลี่ยนภาพและ PDF<br><span>เป็นข้อความที่ตรวจแก้ได้</span></h1>
-      <p class="subtitle">ลากไฟล์ เลือกไฟล์ หรือคัดลอกรูปแล้วกด Ctrl+V ได้ทันที ระบบจะแยกผลลัพธ์เป็นรายหน้าและประมวลผลบนอุปกรณ์ของคุณ</p>
+      <p class="subtitle">ระบบปรับภาพเอียง เพิ่มความคมชัด ลด Noise และทดลอง OCR หลายแบบอัตโนมัติ ก่อนเปิดหน้าตรวจแบบภาพต้นฉบับคู่กับข้อความทีละหน้า</p>
     </section>
     <section class="panel upload-panel">
       <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
@@ -29,6 +29,13 @@
           <button id="pasteButton" class="secondary" type="button">วางรูปจากคลิปบอร์ด</button>
           <span id="pasteHint" class="paste-hint">หรือกด <kbd>Ctrl</kbd> + <kbd>V</kbd> / <kbd>⌘</kbd> + <kbd>V</kbd></span>
         </div>
+      </div>
+      <div class="feature-chips" aria-label="ความสามารถการปรับภาพ">
+        <span>ปรับเอียงอัตโนมัติ</span>
+        <span>Grayscale + Contrast</span>
+        <span>ลด Noise</span>
+        <span>Adaptive Threshold</span>
+        <span>เลือกผล OCR ที่ดีที่สุด</span>
       </div>
       <div id="fileList" class="file-list"></div>
       <div class="controls">
