@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node --check web/app.js && node --check web/upgrade.js && node --check web/advanced.js && node --check web/sw.js",
-    "build": "node build.mjs"
+    "build": "npm run check && node build.mjs"
   },
   "engines": {
     "node": ">=20"
