@@ -1,0 +1,13 @@
+alidate(panel);
+  panel.querySelector('.verified-review')?.remove();
+  const review = document.createElement('section');
+  review.className = 'verified-review';
+  const warnings = validation.issues.filter(issue => !['verified', 'empty'].includes(issue.status));
+  const difficult = validation.issues.flatMap(issue => issue.thai.map(word => ({ ...word, issue })));
+  review.innerHTML = `<div class="verified-head"><div><strong>ตรวจสอบตาราง</strong><small>Column Type · Empty Cell · Numeric Strict · ไทย–อังกฤษ · Cross-Cell</small></div><div class="verified-metrics"><span>Cell ${validation.issues.length}</span><span>ต้องตรวจ ${warnings.length}</span><span>สีแดง ${warnings.filter(issue => ['contaminated','manual_review_required'].includes(issue.status)).length}</span></div></div><div class="verified-tabs"><button class="active" data-tab="issues">จุดต้องตรวจ</button><button data-tab="thai">คำไทยอ่านยาก</button><button data-tab="export">ส่งออก</button></div><div data-view="issues" class="verified-list">${warnings.length ? warnings.map(issue => `<button data-cell="${escapeHtml(issue.cell.dataset.cellId || '')}"><strong>แถว ${issue.rowIndex + 1} คอลัมน์ ${issue.columnIndex + 1}</strong><span>${escapeHtml(issue.text || '[ว่าง]')}</span><small>${escapeHtml(issue.reasons.join(' · ') || issue.status)}</small></button>`).join('') : '<p>ไม่พบ Cell ที่ผิดกฎ แต่ยังควรตรวจเทียบต้นฉบับ</p>'}</div><div data-view="thai" hidden class="verified-words">${difficult.length ? difficult.map(item => `<div><button data-cell="${escapeHtml(item.issue.cell.dataset.cellId || '')}"><strong>${escapeHtml(item.word)}</strong><small>${escapeHtml(item.reasons.join(', '))}</small></button><button data-word="${escapeHtml(item.word)}">เพิ่มพจนานุกรม</button></div>`).join('') : '<p>ไม่พบคำไทยที่เข้าเกณฑ์ตรวจเข้ม</p>'}</div><div data-view="export" hidden><p>CSV รองรับ UTF-8 BOM, Empty Cell, Line Break และเลขศูนย์นำหน้า ส่วน JSON เก็บ Row/Column Span และ Confidence</p><div class="actions"><button data-export="csv">CSV</button><button data-export="json">JSON</button></div></div>`;
+  panel.append(review);
+  review.onclick = event => {
+    const tab = event.target.closest('[data-tab]');
+    if (tab) { $$('[data-tab]', review).forEach(button => button.classList.toggle('active', button === tab)); $$('[data-view]', review).forEach(view => { view.hidden = view.dataset.view !== tab.dataset.tab; }); }
+    const focus = event.target.closest('[data-cell]');
+    if (focus) { const cell = panel.querySelector(`[data-ce
