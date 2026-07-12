@@ -163,8 +163,10 @@ test('structured export excludes image and barcode regions', () => {
   assert.equal(text, 'หัวข้อ\n\nเนื้อหา');
 });
 
-test('region classifier separates image, text and barcode', () => {
-  assert.equal(analyzeRegionFeatures({ textLineScore: .15, connectedComponentScore: .12, texture: .86, colorVariance: .79 }).action, 'skip_text_ocr');
+test('region classifier keeps ambiguous image-like area for secondary detection', () => {
+  const ambiguous = analyzeRegionFeatures({ textLineScore: .15, connectedComponentScore: .12, texture: .86, colorVariance: .79 });
+  assert.equal(ambiguous.action, 'secondary_text_detection');
+  assert.equal(ambiguous.status, 'likely_non_text');
   assert.equal(analyzeRegionFeatures({ textLineScore: .82, connectedComponentScore: .71, texture: .22, colorVariance: .2 }).action, 'text_ocr');
   assert.equal(analyzeRegionFeatures({ barcodeScore: .9, textLineScore: .7, connectedComponentScore: .7 }).action, 'barcode_reader');
 });

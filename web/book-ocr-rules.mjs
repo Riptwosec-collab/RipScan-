@@ -6,14 +6,24 @@ import {
   detectGibberish,
   filterCoverOutput,
 } from './cover-ocr-rules.mjs';
+import {
+  coverZoneForBox,
+  reviewAwareOutput,
+} from './cover-recovery-core.mjs';
+import {
+  analyzeBrokenSaraAm,
+  createSaraAmReviewItem,
+} from './sara-am-spacing.mjs';
 
 export * from './book-ocr-core.mjs';
 export * from './cover-ocr-rules.mjs';
+export * from './sara-am-spacing.mjs';
 
 const SEPARATOR = /^(?:-{4,}|_{4,}|={4,}|─{4,}|━{4,}|═{4,})$/u;
 const ISBN_STRICT = /(?:\bISBN(?:-1[03])?\s*:?\s*(?:97[89][\s-]?)?[0-9Xx](?:[\s-]?[0-9Xx]){8,12}\b|\b97[89](?:[\s-]?\d){10}\b)/i;
 const PHONE_STRICT = /(?:โทร(?:ศัพท์)?\.?\s*:?\s*)?(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,3}\)?[\s-]?)\d{3,4}[\s-]\d{3,4}\b/u;
 const PRICE = /(?:฿|บาท|ราคา)\s*[0-9๐-๙,.]+|[0-9๐-๙,.]+\s*(?:บาท|฿)/u;
+const NON_TEXT_TYPES = new Set(['barcode', 'qr_code', 'image', 'logo', 'icon', 'illustration', 'photograph', 'cartoon', 'decorative_frame', 'ornament', 'background_shape']);
 
 export function classifyDashSymbol(symbol, context = '') {
   const value = String(symbol ?? '');
@@ -51,8 +61,40 @@ export function analyzeRegionFeatures(features = {}) {
     heightConsistency: features.heightConsistency ?? Math.min(1, connectedComponentScore * 0.82 + textLineScore * 0.22),
     spacingConsistency: features.spacingConsistency ?? Math.min(1, textLineScore * 0.72 + connectedComponentScore * 0.24),
     glyphCount: features.glyphCount ?? Math.round(connectedComponentScore * 12),
+    foregroundContrast: features.foregroundContrast ?? Math.max(textLineScore, Number(features.colorContrast || 0)),
   };
   return classifyCoverRegion(inferred);
+}
+
+export function analyzeSaraAm(value, confidence = 1, evidence = {}) {
+  const baseResult = base.analyzeSaraAm(value, confidence);
+  const spacing = analyzeBrokenSaraAm(baseResult.normalizedText, {
+    ...evidence,
+    confidence,
+  });
+  const reviewItem = createSaraAmReviewItem(baseResult.normalizedText, {
+    ...evidence,
+    confidence,
+  });
+  const spacingOnly = spacing.decisions.filter(decision => decision.type === 'broken_sara_am');
+  return {
+    ...baseResult,
+    normalizedText: spacing.normalizedText,
+    correctedText: spacing.correctedText,
+    brokenSpacing: spacing,
+    reviewItem,
+    flagged: [
+      ...(baseResult.flagged || []),
+      ...spacingOnly.map(decision => ({
+        originalOCR: decision.raw,
+        candidates: [decision.candidate],
+        status: decision.status === 'auto_fixed' ? 'auto_fixed' : 'review_recommended',
+        reason: 'broken_sara_am_spacing',
+      })),
+    ],
+    saraAmConfidence: Math.min(baseResult.saraAmConfidence, spacing.saraAmConfidence),
+    requiresReview: baseResult.requiresReview || spacing.requiresReview,
+  };
 }
 
 export function detectFailureSignals(value, box = null, confidence = 1) {
@@ -63,8 +105,11 @@ export function detectFailureSignals(value, box = null, confidence = 1) {
     boundingBoxFit: box?.boundingBoxFit !== false,
   });
   const coverSignals = gibberish.reasons.map(reason => `cover_${reason}`);
-  if (gibberish.rejected) coverSignals.push('rejected_as_non_text');
-  return [...new Set([...baseSignals, ...coverSignals])];
+  if (gibberish.rejected) coverSignals.push('possible_text_gibberish_review');
+  const sara = analyzeBrokenSaraAm(value, { confidence, bbox: box || {} });
+  if (sara.issueCount) coverSignals.push('broken_sara_am');
+  if (sara.requiresReview) coverSignals.push('broken_sara_am_review');
+  return [...new Set([...baseSignals.filter(signal => signal !== 'rejected_as_non_text'), ...coverSignals])];
 }
 
 export function classifyBlockText(value, box = {}, page = {}) {
@@ -94,7 +139,7 @@ export function languageForBlock(type, value = '') {
 
 export function shouldRetryBlock(block) {
   const baseRetry = base.shouldRetryBlock(block);
-  const summary = base.summarizeBlockConfidence(block);
+  const summary = summarizeBlockConfidence(block);
   const gate = confidenceGate({
     ...block,
     textRegionConfidence: block.regionConfidence,
@@ -104,9 +149,9 @@ export function shouldRetryBlock(block) {
     baselineEvidence: block.bbox?.baselineEvidence ?? 1,
   });
   return {
-    retry: baseRetry.retry || gate.status !== 'accepted',
-    signals: [...new Set([...baseRetry.signals, ...gate.failures])],
-    threshold: ['person_name', 'school_name', 'organization_name'].includes(gate.type) ? 0.97 : Math.max(baseRetry.threshold, 0.9),
+    retry: baseRetry.retry || gate.status !== 'verified' || summary.brokenSaraAm?.requiresReview,
+    signals: [...new Set([...baseRetry.signals, ...gate.failures, ...(summary.brokenSaraAm?.issueCount ? ['broken_sara_am'] : [])])],
+    threshold: ['person_name', 'school_name', 'organization_name'].includes(gate.type) ? 0.97 : Math.max(baseRetry.threshold, 0.88),
     gate,
   };
 }
@@ -114,44 +159,78 @@ export function shouldRetryBlock(block) {
 export function buildStructuredText(blocks) {
   const normalized = blocks.map(block => {
     const regionType = block.regionType || block.type || 'text';
-    if (['barcode', 'qr_code', 'image', 'logo', 'icon', 'illustration', 'photograph', 'cartoon', 'decorative_frame', 'ornament', 'background_shape'].includes(regionType)) {
-      return { ...block, regionType, status: 'rejected_as_non_text', gate: { status: 'rejected_as_non_text', accepted: false, requiresReview: false, failures: [`region_${regionType}`] } };
-    }
     const hasEvidence = Number.isFinite(Number(block.confidence)) || Number.isFinite(Number(block.regionConfidence)) || Boolean(block.gate);
-    if (!hasEvidence) {
-      return { ...block, regionType: 'text', status: 'accepted', gate: { status: 'accepted', accepted: true, requiresReview: false, failures: [] } };
+    if (['barcode', 'qr_code'].includes(regionType)) {
+      return { ...block, regionType, status: 'confirmed_non_text', gate: { status: 'confirmed_non_text', accepted: false, requiresReview: false, failures: [`region_${regionType}`] } };
     }
-    const summary = base.summarizeBlockConfidence(block);
+    if (NON_TEXT_TYPES.has(regionType)) {
+      const legacyExplicitNonText = !hasEvidence && !block.status;
+      const confirmed = block.userConfirmedNonText === true || block.status === 'confirmed_non_text' || legacyExplicitNonText;
+      return {
+        ...block,
+        regionType,
+        status: confirmed ? 'confirmed_non_text' : 'likely_non_text',
+        gate: { status: confirmed ? 'confirmed_non_text' : 'likely_non_text', accepted: false, requiresReview: !confirmed, failures: [`region_${regionType}`] },
+      };
+    }
+    if (!hasEvidence) {
+      return { ...block, regionType: 'text', status: 'verified', gate: { status: 'verified', accepted: true, requiresReview: false, failures: [] } };
+    }
+    const summary = summarizeBlockConfidence(block);
     const gate = confidenceGate({
       ...block,
+      page: block.page,
       textRegionConfidence: block.regionConfidence,
       ocrConfidence: block.confidence,
       scriptConfidence: summary.thaiScriptConfidence,
       graphemeConfidence: summary.graphemeConfidence,
       baselineEvidence: block.bbox?.baselineEvidence ?? 1,
+      smallText: block.lowResolution || Number(block.estimatedTextHeight || Infinity) < 14,
+      decorativeFont: block.type === 'title' || block.decorativeFont,
     });
-    return { ...block, gate, status: gate.status, regionType: 'text' };
+    const text = block.userConfirmed && block.confirmedText ? block.confirmedText : (summary.brokenSaraAm?.correctedText || block.text);
+    return { ...block, text, gate, status: block.userConfirmed ? 'verified' : gate.status, regionType: 'text', zone: block.zone || coverZoneForBox(block.bbox || {}, block.page || {}) };
   });
-  const { accepted } = filterCoverOutput(normalized);
-  return base.buildStructuredText(accepted);
+  return reviewAwareOutput(normalized, { includeMarkers: true });
 }
 
 export function summarizeBlockConfidence(block) {
-  const summary = base.summarizeBlockConfidence(block);
+  const grapheme = base.analyzeThaiGraphemes(block.text || '');
+  const saraAm = analyzeSaraAm(block.text || '', block.confidence || 0, {
+    bbox: block.bbox,
+    type: block.type,
+    context: block.text,
+    variantVotes: block.variantVotes,
+    imageEvidence: block.imageEvidence,
+    bboxSupport: block.bboxSupport,
+    providerAgreement: block.providerAgreement,
+    dictionarySupport: block.dictionarySupport,
+    properNoun: ['person_name', 'school_name', 'organization_name'].includes(block.type),
+  });
+  const baseSummary = base.summarizeBlockConfidence(block);
   const gate = confidenceGate({
     ...block,
-    textRegionConfidence: summary.textRegionConfidence,
+    textRegionConfidence: baseSummary.textRegionConfidence,
     ocrConfidence: block.confidence,
-    scriptConfidence: summary.thaiScriptConfidence,
-    graphemeConfidence: summary.graphemeConfidence,
+    scriptConfidence: grapheme.thaiScriptConfidence,
+    graphemeConfidence: grapheme.graphemeConfidence,
     baselineEvidence: block.bbox?.baselineEvidence ?? 1,
+    smallText: block.lowResolution || Number(block.estimatedTextHeight || Infinity) < 14,
+    decorativeFont: block.type === 'title' || block.decorativeFont,
   });
   return {
-    ...summary,
-    finalConfidence: gate.status === 'accepted' ? summary.finalConfidence : Math.min(summary.finalConfidence, 0.89),
-    failureSignals: [...new Set([...summary.failureSignals, ...gate.failures])],
-    requiresReview: gate.requiresReview || summary.requiresReview,
-    rejectedAsNonText: gate.status === 'rejected_as_non_text',
+    ...baseSummary,
+    thaiScriptConfidence: grapheme.thaiScriptConfidence,
+    graphemeConfidence: grapheme.graphemeConfidence,
+    saraAmConfidence: Math.min(baseSummary.saraAmConfidence, saraAm.saraAmConfidence),
+    brokenSaraAm: saraAm.brokenSpacing,
+    saraAmReviewItem: saraAm.reviewItem,
+    finalConfidence: gate.status === 'verified' ? baseSummary.finalConfidence : Math.min(baseSummary.finalConfidence, 0.87),
+    failureSignals: [...new Set([...baseSummary.failureSignals.filter(signal => signal !== 'rejected_as_non_text'), ...gate.failures, ...(saraAm.brokenSpacing.issueCount ? ['broken_sara_am'] : [])])],
+    requiresReview: gate.requiresReview || baseSummary.requiresReview || saraAm.requiresReview,
+    rejectedAsNonText: gate.status === 'confirmed_non_text',
     gate,
   };
 }
+
+export { filterCoverOutput };

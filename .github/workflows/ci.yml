@@ -1,0 +1,73 @@
+name: RipScan CI
+
+on:
+  push:
+    branches:
+      - main
+      - fix/review-first-cover-sara-am
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ripscan-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit and regression tests
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          npm test > test.log 2>&1
+          status=$?
+          if grep -qE '^# fail [1-9][0-9]*$' test.log; then
+            status=1
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          grep -n -E '✖|not ok|failing tests|test at|AssertionError|actual:|expected:|operator:' test.log > focused-test-failures.log || true
+          exit 0
+
+      - name: Upload complete test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripscan-test-log
+          path: |
+            test.log
+            focused-test-failures.log
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Fail when tests failed
+        if: steps.tests.outputs.status != '0'
+        shell: bash
+        run: |
+          cat focused-test-failures.log || true
+          tail -n 30 test.log || true
+          exit 1
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Static build
+        run: node build.mjs

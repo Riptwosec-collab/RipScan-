@@ -9,10 +9,15 @@ test('production build injects balanced layout cover review and hero support', a
   for (const required of [
     '/layout-cover.css',
     '/reference-scale.css',
+    '/cover-recovery.css',
     '/cover-ocr-ui.js',
+    '/cover-recovery-ui.js',
+    '/book-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v1.9.1',
+    'ripscan-pwa-v2.0.0',
     'cover-ocr-core.mjs',
+    'cover-recovery-core.mjs',
+    'sara-am-spacing.mjs',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 
