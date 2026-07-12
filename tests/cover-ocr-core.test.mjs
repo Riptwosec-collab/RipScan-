@@ -33,22 +33,25 @@ test('text line evidence requires baseline, components, and multiple glyphs', ()
   assert.equal(rejected.accepted, false);
 });
 
-test('illustration and ornament regions are skipped before text OCR', () => {
-  const illustration = classifyCoverRegion({ objectScore: .92, texture: .82, colorVariance: .76, textLineScore: .18, connectedComponentScore: .15, baselineEvidence: .12, glyphAlignment: .12, heightConsistency: .2, spacingConsistency: .16, glyphCount: 0 });
-  const ornament = classifyCoverRegion({ ornamentScore: .84, curvedEdgeDensity: .88, symmetry: .74, areaRatio: .28, textLineScore: .15, connectedComponentScore: .12, glyphCount: 0 });
+test('clear illustration and ornament consensus are skipped before text OCR', () => {
+  const illustration = classifyCoverRegion({ objectScore: .92, texture: .82, colorVariance: .76, textLineScore: .08, connectedComponentScore: .08, baselineEvidence: .05, glyphAlignment: .08, heightConsistency: .1, spacingConsistency: .1, glyphCount: 0 });
+  const ornament = classifyCoverRegion({ ornamentScore: .84, curvedEdgeDensity: .88, symmetry: .74, areaRatio: .28, textLineScore: .05, connectedComponentScore: .05, baselineEvidence: .04, glyphCount: 0 });
   assert.equal(illustration.action, 'skip_text_ocr');
+  assert.equal(illustration.status, 'confirmed_non_text');
   assert.equal(illustration.regionType, 'illustration');
   assert.equal(ornament.regionType, 'ornament');
+  assert.equal(ornament.status, 'confirmed_non_text');
 });
 
 test('strong text region is accepted for OCR', () => {
-  const result = classifyCoverRegion({ baselineEvidence: .93, connectedComponentScore: .9, glyphAlignment: .88, heightConsistency: .86, spacingConsistency: .8, textLineScore: .9, glyphCount: 12 });
+  const result = classifyCoverRegion({ baselineEvidence: .93, connectedComponentScore: .9, glyphAlignment: .88, heightConsistency: .86, spacingConsistency: .8, textLineScore: .9, glyphCount: 12, foregroundContrast: .8 });
   assert.equal(result.regionType, 'text');
   assert.equal(result.action, 'text_ocr');
-  assert.ok(result.confidence >= .72);
+  assert.equal(result.status, 'verified');
+  assert.ok(result.confidence >= .88);
 });
 
-test('gibberish examples are rejected as non-text', () => {
+test('gibberish detector still identifies non-text-like candidates', () => {
   for (const sample of ['| 3ร5ณส้ ๕๕ (0', 'คศั 7ฝ7@ [กงหด7', '[]++ || @#']) {
     const result = detectGibberish(sample, { confidence: .31, hasBaseline: false, boundingBoxFit: false });
     assert.equal(result.status, 'rejected_as_non_text', sample);
@@ -69,20 +72,22 @@ test('protected text identifies names schools class levels titles and paragraphs
   assert.equal(classifyProtectedText('เนื้อหายาวสำหรับอธิบายการทำงานของเอกสารในย่อหน้าและมีรายละเอียดครบถ้วน'), 'paragraph');
 });
 
-test('confidence gate is strict for names and never auto-accepts low evidence', () => {
+test('confidence gate is strict for names and routes low evidence to review', () => {
   assert.equal(COVER_CONFIDENCE_THRESHOLDS.protectedText, .97);
   const result = confidenceGate({ text: 'นางสาวชญาณี จิตต์ซื่อ', type: 'person_name', textRegionConfidence: .96, ocrConfidence: .93, scriptConfidence: .99, graphemeConfidence: .99, baselineEvidence: .95 });
-  assert.equal(result.status, 'manual_review');
+  assert.equal(result.status, 'review_required');
+  assert.equal(result.requiresReview, true);
   assert.equal(result.reviewText, '[โปรดตรวจสอบชื่อบุคคล]');
 });
 
-test('confidence gate rejects gibberish instead of exporting it', () => {
+test('gibberish text candidate is retained for review rather than silently discarded', () => {
   const result = confidenceGate({ text: '| 3ร5ณส้ ๕๕ (0', type: 'unknown', textRegionConfidence: .94, ocrConfidence: .35, scriptConfidence: .4, graphemeConfidence: .55, baselineEvidence: .1 });
-  assert.equal(result.status, 'rejected_as_non_text');
+  assert.equal(result.status, 'possible_text');
   assert.equal(result.accepted, false);
+  assert.equal(result.requiresReview, true);
 });
 
-test('output filter includes accepted text and separates review and rejected regions', () => {
+test('output filter includes verified and separates review from confirmed non-text', () => {
   const result = filterCoverOutput([
     { id: 'title', text: 'ใบกิจกรรมวรรณคดี', type: 'title', regionType: 'text', textRegionConfidence: .99, ocrConfidence: .98, scriptConfidence: .99, graphemeConfidence: .99, baselineEvidence: .98 },
     { id: 'name', text: 'นางสาวชญาณี จิตต์ซื่อ', type: 'person_name', regionType: 'text', textRegionConfidence: .95, ocrConfidence: .92, scriptConfidence: .99, graphemeConfidence: .98, baselineEvidence: .95 },
