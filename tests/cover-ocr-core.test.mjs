@@ -35,7 +35,7 @@ test('text line evidence requires baseline, components, and multiple glyphs', ()
 
 test('clear illustration and ornament consensus are skipped before text OCR', () => {
   const page = { width: 1000, height: 1400 };
-  const illustration = classifyCoverRegion({ zone: 'top_illustration', page, objectScore: .92, texture: .82, colorVariance: .76, textLineScore: .08, connectedComponentScore: .08, baselineEvidence: .05, glyphAlignment: .08, heightConsistency: .1, spacingConsistency: .1, glyphCount: 0 });
+  const illustration = classifyCoverRegion({ zone: 'top_illustration', page, objectScore: .92, texture: .82, photoScore: .2, colorVariance: .76, textLineScore: .08, connectedComponentScore: .08, baselineEvidence: .05, glyphAlignment: .08, heightConsistency: .1, spacingConsistency: .1, glyphCount: 0 });
   const ornament = classifyCoverRegion({ zone: 'top_illustration', page, ornamentScore: .84, curvedEdgeDensity: .88, symmetry: .74, areaRatio: .28, textLineScore: .05, connectedComponentScore: .05, baselineEvidence: .04, glyphCount: 0 });
   assert.equal(illustration.action, 'skip_text_ocr');
   assert.equal(illustration.status, 'confirmed_non_text');
