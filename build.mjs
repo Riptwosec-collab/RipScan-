@@ -27,6 +27,10 @@ bookUi = bookUi.replace(
   '      options: readControlOptions(document.querySelector(\'#bookOcrOptions\')),',
   "      options: { ...readControlOptions(document.querySelector('#bookOcrOptions')), performanceWorker: true },\n      pageNumber,",
 );
+bookUi = bookUi.replace(
+  "      onProgress(message) {\n        if (token !== currentRunToken) return;\n        const percent = Math.round((message.progress || 0) * 100);\n        updateGlobalStatus(`หน้า ${pageNumber} · ${message.label || message.status} · ${percent}%`, true);\n      },",
+  "      onProgress(message) {\n        if (token !== currentRunToken) return;\n        const percent = Math.round((message.progress || 0) * 100);\n        updateGlobalStatus(`หน้า ${pageNumber} · ${message.label || message.status} · ${percent}%`, true);\n      },\n      onBlockResult(block) {\n        if (token !== currentRunToken || !block?.text || block.doNotEmitTokens) return;\n        const pageText = pageCard.querySelector('.page-text');\n        const current = pageText?.value?.trim() || '';\n        const partial = block.status === 'verified' ? block.text : `[โปรดตรวจสอบ: ${block.text}]`;\n        if (pageText && !current.includes(block.text)) setPageText(pageCard, `${current}${current ? '\\n\\n' : ''}${partial}`);\n      },",
+);
 await writeFile(bookUiPath, bookUi, 'utf8');
 
 const indexPath = 'dist/index.html';
