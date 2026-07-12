@@ -5,10 +5,10 @@ import {
   confidenceGate,
   detectGibberish,
   filterCoverOutput,
-} from './cover-ocr-core.mjs';
+} from './cover-ocr-rules.mjs';
 
 export * from './book-ocr-core.mjs';
-export * from './cover-ocr-core.mjs';
+export * from './cover-ocr-rules.mjs';
 
 const SEPARATOR = /^(?:-{4,}|_{4,}|={4,}|─{4,}|━{4,}|═{4,})$/u;
 const ISBN_STRICT = /(?:\bISBN(?:-1[03])?\s*:?\s*(?:97[89][\s-]?)?[0-9Xx](?:[\s-]?[0-9Xx]){8,12}\b|\b97[89](?:[\s-]?\d){10}\b)/i;
@@ -80,7 +80,7 @@ export function classifyBlockText(value, box = {}, page = {}) {
   if (/^(?:\d+|[ก-ฮ])[.)]\s+/u.test(text)) return 'numbered_list';
   if (/(?:ถนน|แขวง|เขต|ตำบล|อำเภอ|จังหวัด|เลขที่|ซอย)/u.test(text) && text.length > 15) return 'address';
   if (/(?:สำนักพิมพ์|ศูนย์หนังสือ|จัดพิมพ์|เผยแพร่|มหาวิทยาลัย)/u.test(text)) return 'publisher_info';
-  if (yRatio < 0.32 && (heightRatio > 0.035 || text.length < 80) && !/[.!?。！？]$/u.test(text)) return 'title';
+  if (page.height && yRatio < 0.32 && (heightRatio > 0.035 || text.length < 80) && !/[.!?。！？]$/u.test(text)) return 'title';
   if (text.length >= 70 || /[.!?。！？]$/u.test(text)) return 'paragraph';
   return 'unknown';
 }
@@ -111,6 +111,14 @@ export function shouldRetryBlock(block) {
 
 export function buildStructuredText(blocks) {
   const normalized = blocks.map(block => {
+    const regionType = block.regionType || block.type || 'text';
+    if (['barcode', 'qr_code', 'image', 'logo', 'icon', 'illustration', 'photograph', 'cartoon', 'decorative_frame', 'ornament', 'background_shape'].includes(regionType)) {
+      return { ...block, regionType, status: 'rejected_as_non_text', gate: { status: 'rejected_as_non_text', accepted: false, requiresReview: false, failures: [`region_${regionType}`] } };
+    }
+    const hasEvidence = Number.isFinite(Number(block.confidence)) || Number.isFinite(Number(block.regionConfidence)) || Boolean(block.gate);
+    if (!hasEvidence) {
+      return { ...block, regionType: 'text', status: 'accepted', gate: { status: 'accepted', accepted: true, requiresReview: false, failures: [] } };
+    }
     const summary = base.summarizeBlockConfidence(block);
     const gate = confidenceGate({
       ...block,
@@ -120,7 +128,7 @@ export function buildStructuredText(blocks) {
       graphemeConfidence: summary.graphemeConfidence,
       baselineEvidence: block.bbox?.baselineEvidence ?? 1,
     });
-    return { ...block, gate, status: gate.status, regionType: block.regionType || 'text' };
+    return { ...block, gate, status: gate.status, regionType: 'text' };
   });
   const { accepted } = filterCoverOutput(normalized);
   return base.buildStructuredText(accepted);
