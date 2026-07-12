@@ -8,9 +8,10 @@ test('production build injects balanced layout cover review and hero support', a
   const build = await read('build.mjs');
   for (const required of [
     '/layout-cover.css',
+    '/reference-scale.css',
     '/cover-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v1.9.0',
+    'ripscan-pwa-v1.9.1',
     'cover-ocr-core.mjs',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
