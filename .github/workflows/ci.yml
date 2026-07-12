@@ -34,7 +34,18 @@ jobs:
         run: npm ci
 
       - name: Unit and regression tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test > test.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::group::Focused test failure log"
+            tail -n 220 test.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+          tail -n 45 test.log
 
       - name: Syntax check
         run: npm run check
