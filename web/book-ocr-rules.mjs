@@ -75,13 +75,16 @@ export function classifyBlockText(value, box = {}, page = {}) {
   if (ISBN_STRICT.test(text)) return 'isbn';
   if (PHONE_STRICT.test(text) || /^(?:โทร(?:ศัพท์)?\.?\s*:?\s*)?0\d(?:[\s-]?\d){8}$/u.test(text)) return 'phone';
   if (PRICE.test(text)) return 'price';
+
   const protectedType = classifyProtectedText(text, box, page);
-  if (protectedType !== 'unknown') return protectedType;
+  if (['person_name', 'school_name', 'organization_name', 'class_level'].includes(protectedType)) return protectedType;
+  if (text.length >= 70 || /[.!?。！？]$/u.test(text)) return 'paragraph';
+  if (protectedType === 'title') return 'title';
+
   if (/^(?:\d+|[ก-ฮ])[.)]\s+/u.test(text)) return 'numbered_list';
   if (/(?:ถนน|แขวง|เขต|ตำบล|อำเภอ|จังหวัด|เลขที่|ซอย)/u.test(text) && text.length > 15) return 'address';
   if (/(?:สำนักพิมพ์|ศูนย์หนังสือ|จัดพิมพ์|เผยแพร่|มหาวิทยาลัย)/u.test(text)) return 'publisher_info';
   if (page.height && yRatio < 0.32 && (heightRatio > 0.035 || text.length < 80) && !/[.!?。！？]$/u.test(text)) return 'title';
-  if (text.length >= 70 || /[.!?。！？]$/u.test(text)) return 'paragraph';
   return 'unknown';
 }
 
