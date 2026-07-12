@@ -1,0 +1,545 @@
+/* RipScan 1.7 — compact single-screen landing layout based on the approved reference */
+
+body {
+  min-height: 100vh;
+}
+
+.compact-topbar {
+  position: relative !important;
+  top: auto !important;
+  grid-template-columns: 1fr auto !important;
+  height: 56px !important;
+  padding: 0 clamp(16px, 3vw, 34px) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 0 0 18px 18px !important;
+  background: color-mix(in srgb, var(--header-bg) 92%, transparent) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 25, 0.2) !important;
+}
+
+.compact-topbar .brand {
+  gap: 10px !important;
+}
+
+.compact-brand-mark {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 11px !important;
+  font-size: 10px !important;
+  letter-spacing: 0.04em;
+}
+
+.compact-topbar .brand strong {
+  font-size: 16px;
+}
+
+.compact-topbar .brand small {
+  font-size: 9px !important;
+}
+
+.compact-topbar .header-actions {
+  justify-self: end;
+  gap: 8px;
+}
+
+.compact-topbar .health {
+  min-height: 34px;
+  padding: 6px 11px;
+  border-radius: 10px;
+}
+
+.compact-topbar .icon-button,
+.compact-topbar .language-chip {
+  min-height: 34px;
+}
+
+.compact-topbar .pwa-controls {
+  display: none !important;
+}
+
+.compact-main {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  padding: 10px clamp(14px, 2.8vw, 40px) 14px;
+}
+
+.compact-hero {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 0.82fr) minmax(430px, 1.18fr) !important;
+  align-items: center;
+  gap: clamp(24px, 5vw, 82px);
+  min-height: 250px !important;
+  padding: 2px 14px 4px !important;
+}
+
+.compact-hero .hero-copy {
+  align-self: center;
+  padding-left: clamp(4px, 3vw, 36px);
+}
+
+.compact-hero h1 {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  font-size: clamp(42px, 4.3vw, 68px) !important;
+  line-height: 0.98 !important;
+  letter-spacing: -0.055em !important;
+  text-wrap: balance;
+}
+
+.compact-hero .hero-line {
+  display: block;
+  color: var(--text-primary);
+}
+
+.compact-hero .gradient-line {
+  width: fit-content;
+  background: var(--title-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.compact-hero .hero-visual {
+  min-width: 0;
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+}
+
+.compact-hero .visual-stage {
+  width: min(100%, 610px) !important;
+  height: 238px !important;
+  min-height: 0 !important;
+  margin: 0 auto;
+}
+
+.compact-hero .visual-halo {
+  width: 76% !important;
+  height: 52% !important;
+  left: 12% !important;
+  bottom: 2% !important;
+}
+
+.compact-hero .visual-file {
+  width: 142px !important;
+  height: 178px !important;
+  border-radius: 20px !important;
+}
+
+.compact-hero .source-file {
+  left: 16% !important;
+  top: 22px !important;
+}
+
+.compact-hero .result-file {
+  right: 15% !important;
+  top: 34px !important;
+}
+
+.compact-hero .ocr-badge {
+  width: 82px !important;
+  height: 82px !important;
+  left: calc(50% - 41px) !important;
+  top: 54px !important;
+}
+
+.compact-hero .conversion-arrow {
+  top: 145px !important;
+}
+
+.compact-hero .floating-chip {
+  font-size: 9px !important;
+  padding: 5px 9px !important;
+}
+
+.compact-hero .chip-pdf {
+  left: 14% !important;
+  bottom: 3% !important;
+}
+
+.compact-hero .chip-jpg {
+  right: 8% !important;
+  top: 8% !important;
+}
+
+.compact-hero .chip-png {
+  right: 14% !important;
+  bottom: 1% !important;
+}
+
+.ocr-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.95fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.compact-upload-panel,
+.settings-panel {
+  min-width: 0;
+  height: 258px;
+  padding: 12px !important;
+  border: 1px solid var(--surface-border-strong) !important;
+  border-radius: 18px !important;
+  background: color-mix(in srgb, var(--surface-strong) 90%, transparent) !important;
+  box-shadow: 0 16px 42px var(--shadow-color) !important;
+  overflow: hidden;
+}
+
+.compact-dropzone {
+  min-height: 190px !important;
+  height: 190px;
+  padding: 12px !important;
+  border-radius: 14px !important;
+}
+
+.compact-dropzone .upload-art {
+  min-height: 56px;
+  margin-bottom: 3px;
+}
+
+.compact-dropzone .upload-cloud {
+  width: 56px !important;
+  height: 56px !important;
+}
+
+.compact-dropzone .mini-file {
+  transform: scale(0.86);
+}
+
+.compact-dropzone h2 {
+  margin: 2px 0 1px !important;
+  font-size: clamp(16px, 1.5vw, 20px) !important;
+}
+
+.compact-dropzone > p {
+  margin: 0 0 8px !important;
+  font-size: 11px !important;
+}
+
+.compact-dropzone .upload-actions {
+  gap: 8px;
+}
+
+.compact-dropzone .choose-file-button,
+.compact-dropzone .paste-button {
+  min-height: 38px !important;
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+}
+
+.compact-dropzone .choose-file-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.compact-dropzone .paste-hint {
+  margin-top: 6px !important;
+  font-size: 9px !important;
+}
+
+.compact-file-list {
+  max-height: 43px;
+  margin-top: 8px;
+  overflow: auto;
+}
+
+.compact-file-list:empty {
+  display: none;
+}
+
+.compact-file-list .file-row {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.settings-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.settings-heading > div {
+  display: grid;
+  gap: 1px;
+}
+
+.settings-heading strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.settings-heading small {
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+.settings-icon {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 10px;
+  color: #fff;
+  background: var(--button-gradient);
+  box-shadow: 0 8px 20px var(--glow-color);
+}
+
+.settings-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.compact-controls {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: end;
+}
+
+.compact-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.compact-controls select,
+.readonly-setting {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 10px !important;
+  background: var(--control-bg) !important;
+  color: var(--text-primary) !important;
+  font-size: 11px !important;
+}
+
+.compact-controls .clear-button {
+  min-height: 38px;
+  font-size: 11px;
+}
+
+.compact-controls .run-button {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.settings-panel .advanced-controls {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 7px !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  border-radius: 11px !important;
+}
+
+.settings-panel .advanced-controls label {
+  min-width: 0 !important;
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+.settings-panel .advanced-controls select {
+  min-height: 34px;
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.settings-panel .advanced-controls button {
+  min-height: 34px;
+  align-self: end;
+  padding: 7px 10px;
+  font-size: 10px;
+}
+
+.settings-panel .advanced-controls small {
+  display: none;
+}
+
+.settings-panel .status,
+.settings-panel .error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.compact-feature-bar {
+  min-height: 58px !important;
+  margin: 14px 0 0 !important;
+  border-radius: 15px !important;
+  overflow: hidden;
+}
+
+.compact-feature-bar .feature-item {
+  min-height: 58px !important;
+  padding: 8px 12px !important;
+  gap: 8px !important;
+}
+
+.compact-feature-bar .feature-icon {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.compact-feature-bar .feature-icon svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.compact-feature-bar .feature-item strong {
+  font-size: 11px !important;
+}
+
+.compact-main > .results:empty {
+  display: none;
+}
+
+@media (min-width: 1024px) and (min-height: 650px) {
+  body:has(.results:empty) {
+    overflow-y: hidden;
+  }
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow-y: auto !important;
+  }
+
+  .compact-main {
+    padding-top: 14px;
+  }
+
+  .compact-hero {
+    grid-template-columns: 1fr 1fr !important;
+    min-height: 290px !important;
+  }
+
+  .compact-hero h1 {
+    font-size: clamp(38px, 5.4vw, 58px) !important;
+  }
+
+  .ocr-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-upload-panel,
+  .settings-panel {
+    height: auto;
+    min-height: 250px;
+  }
+}
+
+@media (max-width: 720px) {
+  .compact-topbar {
+    height: 58px !important;
+    padding: 0 12px !important;
+  }
+
+  .compact-topbar .health {
+    display: none;
+  }
+
+  .compact-topbar .language-chip {
+    padding-inline: 8px;
+  }
+
+  .compact-main {
+    padding: 10px 10px 16px;
+  }
+
+  .compact-hero {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+    min-height: 0 !important;
+    padding: 18px 6px 4px !important;
+  }
+
+  .compact-hero .hero-copy {
+    padding-left: 0;
+    text-align: center;
+  }
+
+  .compact-hero h1 {
+    justify-items: center;
+    font-size: clamp(38px, 13vw, 58px) !important;
+  }
+
+  .compact-hero .hero-visual {
+    min-height: 220px;
+  }
+
+  .compact-hero .visual-stage {
+    height: 220px !important;
+  }
+
+  .compact-hero .visual-file {
+    width: 112px !important;
+    height: 146px !important;
+  }
+
+  .compact-hero .source-file {
+    left: 12% !important;
+  }
+
+  .compact-hero .result-file {
+    right: 10% !important;
+  }
+
+  .compact-hero .ocr-badge {
+    width: 68px !important;
+    height: 68px !important;
+    left: calc(50% - 34px) !important;
+    top: 58px !important;
+  }
+
+  .compact-controls {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-panel .advanced-controls {
+    grid-template-columns: 1fr !important;
+  }
+
+  .compact-feature-bar {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .compact-feature-bar .feature-item:nth-child(2) {
+    border-right: 0 !important;
+  }
+
+  .compact-feature-bar .feature-item:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--surface-border) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact-hero .visual-file,
+  .compact-hero .floating-chip,
+  .compact-hero .ocr-badge,
+  .compact-dropzone .upload-cloud {
+    animation: none !important;
+  }
+}
