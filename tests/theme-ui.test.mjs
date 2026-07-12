@@ -4,20 +4,31 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('landing page contains required dual-theme controls and upload elements', async () => {
+test('landing page contains required dual-theme controls and OCR elements', async () => {
   const html = await read('web/index.html');
   for (const required of [
     'data-theme="dark"',
     'id="themeToggle"',
-    'id="menuToggle"',
     'id="chooseFileButton"',
     'id="dropzone"',
     'id="fileInput"',
     'id="runButton"',
+    'id="language"',
     'id="automaticVerifiedSettings"',
     'href="/redesign.css"',
+    'href="/compact-home.css"',
     'src="/theme-ui.js"',
   ]) assert.ok(html.includes(required), `missing ${required}`);
+});
+
+test('reference layout removes every marked section', async () => {
+  const html = await read('web/index.html');
+  assert.ok(!html.includes('class="main-nav"'));
+  assert.ok(!html.includes('id="menuToggle"'));
+  assert.ok(!html.includes('PRIVATE BROWSER OCR'));
+  assert.ok(!html.includes('อัปโหลดไฟล์ภาพ หรือ PDF ของคุณ'));
+  assert.ok(html.includes('class="ocr-workspace'));
+  assert.ok(html.includes('class="panel settings-panel"'));
 });
 
 test('dark navy-purple is the default while saved light preference is respected', async () => {
@@ -43,17 +54,25 @@ test('theme CSS defines dark and light variable systems', async () => {
   ]) assert.ok(css.includes(variable), `missing ${variable}`);
 });
 
+test('compact layout is responsive and supports a single-screen desktop view', async () => {
+  const css = await read('web/compact-home.css');
+  assert.ok(css.includes('.ocr-workspace'));
+  assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) minmax(380px, 0.95fr)'));
+  assert.ok(css.includes('body:has(.results:empty)'));
+  assert.ok(css.includes('@media (max-width: 720px)'));
+  assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
+});
+
 test('motion design respects reduced-motion preferences', async () => {
   const css = await read('web/redesign.css');
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   assert.ok(css.includes('animation-duration: 0.001ms'));
 });
 
-test('theme UI persists manual selection and supports responsive menu', async () => {
+test('theme UI persists manual selection and opens the file picker', async () => {
   const js = await read('web/theme-ui.js');
   assert.ok(js.includes("localStorage.getItem('ripscan-theme')"));
   assert.ok(js.includes("localStorage.setItem('ripscan-theme'"));
-  assert.ok(js.includes("mainNav.classList.remove('is-open')"));
   assert.ok(js.includes('fileInput?.click()'));
 });
 
@@ -70,10 +89,11 @@ test('verified table settings run automatically without rendering controls', asy
   assert.ok(js.includes("dataset.verifiedSettings = 'automatic'"));
 });
 
-test('PWA shell includes redesign and automatic heading assets', async () => {
+test('PWA shell includes compact layout and automatic heading assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v1.6.3'));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v1.7.0'));
   assert.ok(serviceWorker.includes("'/redesign.css'"));
+  assert.ok(serviceWorker.includes("'/compact-home.css'"));
   assert.ok(serviceWorker.includes("'/theme-ui.js'"));
   assert.ok(serviceWorker.includes("'/verified-ui-fix.js'"));
   assert.ok(serviceWorker.includes("'/heading-auto.js'"));
