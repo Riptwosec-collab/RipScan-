@@ -68,7 +68,8 @@ export function collectSaraAmVariantEvidence(attempts = [], context = {}) {
     analyses.push({ name: attempt?.name || 'variant', text, candidates, confidence: confidenceOf(attempt) });
     for (const candidate of candidates) {
       const normalizedCandidate = normalize(candidate);
-      if (!normalizedCandidate || normalizedCandidate === text && !built.issues.length) continue;
+      if (!normalizedCandidate) continue;
+      if (normalizedCandidate === text && !built.issues.length && !normalizedCandidate.includes('ำ')) continue;
       candidateVotes.set(normalizedCandidate, (candidateVotes.get(normalizedCandidate) || 0) + 1);
       candidateConfidence.set(normalizedCandidate, Math.max(candidateConfidence.get(normalizedCandidate) || 0, confidenceOf(attempt)));
     }
