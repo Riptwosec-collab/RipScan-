@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix/review-first-cover-sara-am
+      - fix/cover-hard-block-sara-am-v21
   pull_request:
     branches:
       - main
@@ -34,37 +35,19 @@ jobs:
         run: npm ci
 
       - name: Run unit and regression tests
-        id: tests
         shell: bash
         run: |
-          set +e
-          npm test > test.log 2>&1
-          status=$?
-          if grep -qE '^# fail [1-9][0-9]*$' test.log; then
-            status=1
-          fi
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          grep -n -E '✖|not ok|failing tests|test at|AssertionError|actual:|expected:|operator:' test.log > focused-test-failures.log || true
-          exit 0
+          set -o pipefail
+          npm test 2>&1 | tee test.log
 
       - name: Upload complete test log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ripscan-test-log
-          path: |
-            test.log
-            focused-test-failures.log
-          if-no-files-found: error
+          path: test.log
+          if-no-files-found: warn
           retention-days: 3
-
-      - name: Fail when tests failed
-        if: steps.tests.outputs.status != '0'
-        shell: bash
-        run: |
-          cat focused-test-failures.log || true
-          tail -n 30 test.log || true
-          exit 1
 
       - name: Syntax check
         run: npm run check
