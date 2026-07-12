@@ -36,13 +36,16 @@ jobs:
       - name: Run unit and regression tests
         id: tests
         shell: bash
-        continue-on-error: true
         run: |
+          set +e
           npm test > test.log 2>&1
           status=$?
+          if grep -qE '^# fail [1-9][0-9]*$' test.log; then
+            status=1
+          fi
           echo "status=$status" >> "$GITHUB_OUTPUT"
           grep -n -E '✖|not ok|failing tests|test at|AssertionError|actual:|expected:|operator:' test.log > focused-test-failures.log || true
-          exit "$status"
+          exit 0
 
       - name: Upload complete test log
         if: always()
@@ -60,6 +63,7 @@ jobs:
         shell: bash
         run: |
           cat focused-test-failures.log || true
+          tail -n 30 test.log || true
           exit 1
 
       - name: Syntax check
