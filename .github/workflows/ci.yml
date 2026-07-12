@@ -41,11 +41,11 @@ jobs:
           status=$?
           if [ "$status" -ne 0 ]; then
             echo "::group::Focused test failure log"
-            tail -n 220 test.log
+            grep -n -E '✖|not ok|failing tests|test at|AssertionError|actual:|expected:|operator:' test.log | tail -n 100 || true
             echo "::endgroup::"
             exit "$status"
           fi
-          tail -n 45 test.log
+          tail -n 28 test.log
 
       - name: Syntax check
         run: npm run check
