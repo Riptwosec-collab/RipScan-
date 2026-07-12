@@ -3,6 +3,7 @@ export const SARA_AM_SPACING_VERSION = '2.0.0';
 const THAI_CONSONANT = '[ก-ฮ]';
 const THAI_MARKS = '[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]*';
 const BROKEN_SPACING = new RegExp(`(${THAI_CONSONANT})(${THAI_MARKS})(\\s{1,3})(?:ํ\\s*)?า`, 'gu');
+const BROKEN_COMPOSED_SPACING = new RegExp(`(${THAI_CONSONANT})(${THAI_MARKS})(\\s{1,3})ำ`, 'gu');
 const DECOMPOSED_SARA_AM = /ํ\s*า/gu;
 const THAI_WORD = /[ก-๙]+/gu;
 
@@ -94,20 +95,17 @@ function surroundingToken(text, start, end) {
   return { start: left, end: right, text: text.slice(left, right) };
 }
 
-export function buildBrokenSaraAmCandidates(value, evidence = {}) {
-  const rawText = String(value ?? '');
-  const normalizedUnicode = rawText.replace(DECOMPOSED_SARA_AM, 'ำ').normalize('NFC');
+function spacingIssues(text, pattern, evidence) {
   const issues = [];
-
-  for (const match of normalizedUnicode.matchAll(BROKEN_SPACING)) {
+  for (const match of text.matchAll(pattern)) {
     const full = match[0];
     const consonant = match[1];
     const marks = match[2] || '';
     const start = Number(match.index || 0);
     const end = start + full.length;
-    const token = surroundingToken(normalizedUnicode, start, end);
+    const token = surroundingToken(text, start, end);
     const replacement = `${consonant}${marks}ำ`;
-    const candidateText = `${normalizedUnicode.slice(0, start)}${replacement}${normalizedUnicode.slice(end)}`;
+    const candidateText = `${text.slice(0, start)}${replacement}${text.slice(end)}`;
     const gapInfo = classifyThaiGap(
       Number(evidence.gaps?.[start] ?? evidence.gap ?? 0),
       Number(evidence.medianCharacterWidth || 1),
@@ -119,13 +117,32 @@ export function buildBrokenSaraAmCandidates(value, evidence = {}) {
       end,
       raw: full,
       token: token.text,
+      replacement,
       candidateText,
       candidateToken: `${token.text.slice(0, start - token.start)}${replacement}${token.text.slice(end - token.start)}`,
       gap: gapInfo,
-      reason: 'thai_consonant_space_sara_aa_pattern',
+      reason: 'thai_consonant_space_sara_am_pattern',
       requiresImageCheck: true,
     });
   }
+  return issues;
+}
+
+function applyAllSpacingCandidates(text, issues) {
+  let output = text;
+  for (const issue of [...issues].filter(item => item.start !== undefined).sort((a, b) => b.start - a.start)) {
+    output = `${output.slice(0, issue.start)}${issue.replacement}${output.slice(issue.end)}`;
+  }
+  return output;
+}
+
+export function buildBrokenSaraAmCandidates(value, evidence = {}) {
+  const rawText = String(value ?? '');
+  const normalizedUnicode = rawText.replace(DECOMPOSED_SARA_AM, 'ำ').normalize('NFC');
+  const issues = [
+    ...spacingIssues(normalizedUnicode, BROKEN_SPACING, evidence),
+    ...spacingIssues(normalizedUnicode, BROKEN_COMPOSED_SPACING, evidence),
+  ].sort((a, b) => a.start - b.start);
 
   const compact = normalizedUnicode.replace(/\s+/gu, '');
   for (const [confusion, candidates] of Object.entries(PLAIN_CONFUSIONS)) {
@@ -135,31 +152,31 @@ export function buildBrokenSaraAmCandidates(value, evidence = {}) {
         type: 'possible_missing_sara_am',
         detectedPattern: 'plain_sara_aa_confusion',
         raw: confusion,
-        candidateText: candidate,
+        candidateText: normalizedUnicode.includes(confusion) ? normalizedUnicode.replace(confusion, candidate) : candidate,
         candidateToken: candidate,
+        replacement: candidate,
         reason: 'dictionary_supported_confusion_requires_image',
         requiresImageCheck: true,
       });
     }
   }
 
+  const combinedCandidate = applyAllSpacingCandidates(normalizedUnicode, issues.filter(issue => issue.type === 'broken_sara_am'));
   return {
     rawText,
     normalizedUnicode,
     issues,
-    candidates: [...new Set(issues.map(issue => issue.candidateText).filter(Boolean))],
+    combinedCandidate,
+    candidates: [...new Set([combinedCandidate, ...issues.map(issue => issue.candidateText)].filter(candidate => candidate && candidate !== normalizedUnicode))],
   };
 }
 
 export function analyzeBrokenSaraAm(value, evidence = {}) {
   const built = buildBrokenSaraAmCandidates(value, evidence);
-  let correctedText = built.normalizedUnicode;
-  const decisions = [];
-
-  for (const issue of built.issues) {
-    const candidate = issue.candidateText;
+  const decisions = built.issues.map(issue => {
+    const candidate = issue.type === 'broken_sara_am' ? built.combinedCandidate : issue.candidateText;
     const autoFix = safeAutoFixAllowed(candidate, evidence);
-    decisions.push({
+    return {
       ...issue,
       candidate,
       autoFix,
@@ -168,13 +185,13 @@ export function analyzeBrokenSaraAm(value, evidence = {}) {
       reasons: autoFix
         ? ['two_or_more_variants_agree', 'image_evidence_high', 'bbox_support', 'valid_thai_grapheme', 'dictionary_support']
         : ['broken_grapheme_detected', 'image_confirmation_required'],
-    });
-    if (autoFix && issue.start !== undefined) {
-      const local = buildBrokenSaraAmCandidates(correctedText, evidence).issues.find(item => item.type === issue.type && item.raw === issue.raw);
-      if (local?.start !== undefined) correctedText = `${correctedText.slice(0, local.start)}${issue.candidateToken.slice(0, issue.candidateToken.length)}${correctedText.slice(local.end)}`;
-      else correctedText = candidate;
-    }
-  }
+    };
+  });
+  const spacingDecisions = decisions.filter(decision => decision.type === 'broken_sara_am');
+  const allSpacingSafe = spacingDecisions.length > 0 && spacingDecisions.every(decision => decision.autoFix);
+  let correctedText = allSpacingSafe ? built.combinedCandidate : built.normalizedUnicode;
+  const safePlain = decisions.find(decision => decision.type === 'possible_missing_sara_am' && decision.autoFix);
+  if (!spacingDecisions.length && safePlain) correctedText = safePlain.candidate;
 
   const unicodeChanged = built.rawText !== built.normalizedUnicode;
   const unresolved = decisions.filter(decision => !decision.autoFix);
