@@ -67,7 +67,7 @@ test('strict cover output cannot leak illustration tokens', () => {
   assert.doesNotMatch(output, /TR uf|CAR A|0002/);
   assert.deepEqual(coverOutputAudit(blocks), {
     blockedRegionCount: 1,
-    blockedTokenCount: 6,
+    blockedTokenCount: 7,
     outputLeakCount: 0,
     passed: true,
   });
