@@ -34,8 +34,9 @@ test('text line evidence requires baseline, components, and multiple glyphs', ()
 });
 
 test('clear illustration and ornament consensus are skipped before text OCR', () => {
-  const illustration = classifyCoverRegion({ objectScore: .92, texture: .82, colorVariance: .76, textLineScore: .08, connectedComponentScore: .08, baselineEvidence: .05, glyphAlignment: .08, heightConsistency: .1, spacingConsistency: .1, glyphCount: 0 });
-  const ornament = classifyCoverRegion({ ornamentScore: .84, curvedEdgeDensity: .88, symmetry: .74, areaRatio: .28, textLineScore: .05, connectedComponentScore: .05, baselineEvidence: .04, glyphCount: 0 });
+  const page = { width: 1000, height: 1400 };
+  const illustration = classifyCoverRegion({ zone: 'top_illustration', page, objectScore: .92, texture: .82, colorVariance: .76, textLineScore: .08, connectedComponentScore: .08, baselineEvidence: .05, glyphAlignment: .08, heightConsistency: .1, spacingConsistency: .1, glyphCount: 0 });
+  const ornament = classifyCoverRegion({ zone: 'top_illustration', page, ornamentScore: .84, curvedEdgeDensity: .88, symmetry: .74, areaRatio: .28, textLineScore: .05, connectedComponentScore: .05, baselineEvidence: .04, glyphCount: 0 });
   assert.equal(illustration.action, 'skip_text_ocr');
   assert.equal(illustration.status, 'confirmed_non_text');
   assert.equal(illustration.regionType, 'illustration');
@@ -43,12 +44,12 @@ test('clear illustration and ornament consensus are skipped before text OCR', ()
   assert.equal(ornament.status, 'confirmed_non_text');
 });
 
-test('strong text region is accepted for OCR', () => {
+test('strong visual text evidence enters OCR but awaits OCR confidence', () => {
   const result = classifyCoverRegion({ baselineEvidence: .93, connectedComponentScore: .9, glyphAlignment: .88, heightConsistency: .86, spacingConsistency: .8, textLineScore: .9, glyphCount: 12, foregroundContrast: .8 });
   assert.equal(result.regionType, 'text');
   assert.equal(result.action, 'text_ocr');
-  assert.equal(result.status, 'verified');
-  assert.ok(result.confidence >= .88);
+  assert.equal(result.status, 'review_required');
+  assert.equal(result.requiresReview, true);
 });
 
 test('gibberish detector still identifies non-text-like candidates', () => {
