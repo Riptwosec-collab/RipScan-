@@ -76,6 +76,7 @@ export function analyzeSaraAm(value, confidence = 1, evidence = {}) {
     ...evidence,
     confidence,
   });
+  const spacingOnly = spacing.decisions.filter(decision => decision.type === 'broken_sara_am');
   return {
     ...baseResult,
     normalizedText: spacing.normalizedText,
@@ -84,7 +85,7 @@ export function analyzeSaraAm(value, confidence = 1, evidence = {}) {
     reviewItem,
     flagged: [
       ...(baseResult.flagged || []),
-      ...spacing.decisions.map(decision => ({
+      ...spacingOnly.map(decision => ({
         originalOCR: decision.raw,
         candidates: [decision.candidate],
         status: decision.status === 'auto_fixed' ? 'auto_fixed' : 'review_recommended',
@@ -158,11 +159,13 @@ export function shouldRetryBlock(block) {
 export function buildStructuredText(blocks) {
   const normalized = blocks.map(block => {
     const regionType = block.regionType || block.type || 'text';
+    const hasEvidence = Number.isFinite(Number(block.confidence)) || Number.isFinite(Number(block.regionConfidence)) || Boolean(block.gate);
     if (['barcode', 'qr_code'].includes(regionType)) {
       return { ...block, regionType, status: 'confirmed_non_text', gate: { status: 'confirmed_non_text', accepted: false, requiresReview: false, failures: [`region_${regionType}`] } };
     }
     if (NON_TEXT_TYPES.has(regionType)) {
-      const confirmed = block.userConfirmedNonText === true || block.status === 'confirmed_non_text';
+      const legacyExplicitNonText = !hasEvidence && !block.status;
+      const confirmed = block.userConfirmedNonText === true || block.status === 'confirmed_non_text' || legacyExplicitNonText;
       return {
         ...block,
         regionType,
@@ -170,7 +173,6 @@ export function buildStructuredText(blocks) {
         gate: { status: confirmed ? 'confirmed_non_text' : 'likely_non_text', accepted: false, requiresReview: !confirmed, failures: [`region_${regionType}`] },
       };
     }
-    const hasEvidence = Number.isFinite(Number(block.confidence)) || Number.isFinite(Number(block.regionConfidence)) || Boolean(block.gate);
     if (!hasEvidence) {
       return { ...block, regionType: 'text', status: 'verified', gate: { status: 'verified', accepted: true, requiresReview: false, failures: [] } };
     }
