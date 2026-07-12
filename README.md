@@ -1,6 +1,6 @@
 # RipScan — Thai-English OCR
 
-เว็บแปลงภาพและ PDF เป็นข้อความภาษาไทย–อังกฤษ รองรับการใช้งานออนไลน์บน Vercel และการใช้งานในเครื่อง โดยประมวลผลไฟล์ภายในอุปกรณ์ของผู้ใช้เป็นหลัก
+เว็บแปลงภาพและ PDF เป็นข้อความภาษาไทย–อังกฤษ รองรับการใช้งานออนไลน์บน Vercel และการใช้งานในเครื่อง ไฟล์ถูกประมวลผลภายในอุปกรณ์ของผู้ใช้เป็นหลัก
 
 ## ใช้งานออนไลน์
 
@@ -8,108 +8,249 @@
 https://rip-scan.vercel.app
 ```
 
-โหมดออนไลน์ประมวลผล OCR ภายในเบราว์เซอร์ด้วย Tesseract.js และใช้ PDF.js อ่าน Text Layer หรือแปลงหน้าสแกนเป็นภาพก่อน OCR ไฟล์ไม่ถูกอัปโหลดไปเก็บบนเซิร์ฟเวอร์
+โหมดออนไลน์ใช้ Tesseract.js และ PDF.js ภายใน Browser ไฟล์ไม่ถูกอัปโหลดไปเก็บบนเซิร์ฟเวอร์
 
 ## ความสามารถหลัก
 
 - PNG, JPG, WEBP, TIFF, BMP และ PDF
-- ภาษาไทย ภาษาอังกฤษ และไทย+อังกฤษ
+- ภาษาไทย ภาษาอังกฤษ และไทย–อังกฤษผสม
 - PDF Text Layer และ PDF สแกนสูงสุด 100 หน้า
-- วางภาพจาก Clipboard ด้วย Ctrl+V / Cmd+V
-- ปรับภาพเอียง, Grayscale, Contrast, ลด Noise และ Threshold อัตโนมัติ
-- หน้าตรวจแบบภาพคู่ข้อความ พร้อม Zoom, หมุนดู, ค้นหา และ Undo/Redo
-- Thumbnail แยกหน้า พร้อมลากจัดลำดับ เลื่อนขึ้น/ลง หมุน ลบ และเลือกหลายหน้า
-- ครอปภาพหน้าเอกสารและสั่ง OCR ใหม่เฉพาะหน้า หรือหลายหน้าที่เลือก
-- ดาวน์โหลดรูปหน้าที่เลือกเป็น ZIP
+- วางรูปจาก Clipboard ด้วย `Ctrl+V` หรือ `Cmd+V`
+- อัปโหลดหลายไฟล์และลบไฟล์ออกจากรายการ
+- ปรับภาพเอียง Contrast Threshold และขยายภาพอัตโนมัติ
+- ตรวจภาพคู่ข้อความ พร้อม Zoom หมุน ค้นหา Undo และ Redo
+- Thumbnail แยกหน้า ลากจัดลำดับ หมุน ลบ Crop และ OCR ใหม่
+- ส่งออก TXT, Markdown, HTML, CSV, JSON, DOCX, XLSX และ PDF
+- PWA ติดตั้งเป็นแอปและเตรียมใช้งานออฟไลน์
 
-## OCR Engine และประสิทธิภาพ
+## OCR ปกหนังสือ พื้นหลังไล่สี และข้อความขนาดเล็ก
 
-RipScan 1.5 ใช้ Tesseract.js 7 และระบบจัดการ Worker สำหรับงานหลายหน้า
+RipScan 1.8 เพิ่มชั้น OCR แบบแบ่ง Block สำหรับภาพที่มีพื้นหลังสี ตัวอักษรสีขาว ข้อความขนาดเล็ก รูปภาพ และหลายโซนในหน้าเดียว
 
-- โหมด **อัตโนมัติ** เลือกจำนวน Worker ตามความสามารถของอุปกรณ์
-- โหมด **Turbo** ใช้พร้อมกันสูงสุด 2 Workers
-- โหมด **ประหยัด RAM** ใช้ 1 Worker
-- ใช้ Worker Pool สำหรับ OCR หลายหน้าที่เลือก
-- แสดงความคืบหน้าและ ETA จาก Progress จริงของ OCR
-- มีปุ่มยกเลิกงาน OCR และคืนหน่วยความจำด้วยการ Terminate Worker
-- Cache โมเดลภาษาบนเบราว์เซอร์เพื่อลดเวลาการโหลดครั้งถัดไป
-- จำกัดการทำงานพร้อมกันไม่เกิน 2 งาน
+### Text Only OCR
+
+ค่าเริ่มต้นคือ **อ่านเฉพาะข้อความ**:
+
+- ตรวจ Text Region ก่อน OCR
+- ข้ามรูปภาพ โลโก้ ไอคอน และกราฟิกที่ไม่มีแนวข้อความ
+- แยก Barcode/QR ออกจาก Text OCR
+- เก็บ Bounding Box ของแต่ละ Block
+- จัด Reading Order จากตำแหน่งจริง
+- ไม่ใช้ข้อความจาก Image Region ใน Export
+
+Region ที่รองรับ:
+
+- `text`
+- `image`
+- `logo`
+- `icon`
+- `barcode`
+- `qr_code`
+- `decorative_shape`
+- `separator_line`
+- `table`
+- `unknown`
+
+Block ข้อความถูกจำแนกเป็น:
+
+- `title`
+- `numbered_list`
+- `paragraph`
+- `publisher_info`
+- `address`
+- `phone`
+- `isbn`
+- `price`
+- `unknown`
+
+### Barcode และ ISBN
+
+- ใช้ `BarcodeDetector` เมื่อ Browser รองรับ EAN-13 และ QR
+- แยก Bounding Box Barcode ออกจาก Text OCR
+- ผูก ISBN และราคาใกล้ Barcode เป็นข้อมูลโครงสร้าง
+- หาก Browser ถอดรหัสไม่ได้ ระบบยังพยายามกันเส้น Barcode ออกจากข้อความและส่งให้ตรวจ
+- Phone และ ISBN ใช้กฎแยกกันเพื่อป้องกันเบอร์โทรถูกตีความเป็น ISBN
+
+### Gradient และ Small Text Variants
+
+ระบบสร้าง Candidate ต่อ Block:
+
+1. Original Crop
+2. Grayscale
+3. CLAHE-like Contrast
+4. Local Contrast Normalized
+5. Background Flattened
+6. Blue-channel Enhanced
+7. Adaptive Threshold แบบรักษาจุดเล็ก
+8. Upscale 3x
+9. Upscale 4x
+10. Mild Sharpen
+
+ตัวอักษรที่ต่ำกว่าเกณฑ์จะถูกระบุ `Low Resolution` และส่ง Manual Review ระบบไม่เดาข้อความที่ไม่มีหลักฐานภาพเพียงพอ
+
+### ภาษาแยกตาม Block
+
+- Thai title/paragraph → Thai
+- Address/Publisher → Thai หรือ Thai+English
+- ISBN/Phone/Price → Number/English
+- Barcode → Barcode Reader
+- Mixed Block → Thai+English
+
+ไม่บังคับใช้ไทย–อังกฤษกับทุก Block
+
+## สระอำและ Thai Grapheme
+
+ระบบตรวจ `ำ` โดยเฉพาะ:
+
+- Normalize Unicode จาก `ํา` เป็น `ำ` พร้อม Change Log
+- ตรวจสระอำหาย เช่น `จานวน`, `ดาเนินการ`, `สานักงาน`
+- เสนอ Candidate แต่ไม่แทนคำอัตโนมัติ
+- Confidence ของสระอำต่ำกว่า 96% จะถูกส่ง Review
+- ตรวจ Floating Mark, วรรณยุกต์ซ้ำ, สระ/วรรณยุกต์ไม่มีพยัญชนะฐาน และ Unicode Order
+- ชื่อบุคคล ชื่อหน่วยงาน และศัพท์เฉพาะใช้ Threshold สูงขึ้น
+
+พจนานุกรมแบ่งหมวดทั่วไป ราชการ วิชาการ หน่วยงาน IT สระอำ และคำเฉพาะผู้ใช้ พจนานุกรมใช้เพิ่มคะแนน Candidate เท่านั้น ภาพและ OCR Evidence มีน้ำหนักสูงกว่า Context
+
+ตัวอย่างคำทดสอบ:
+
+```text
+ดำเนินการ จำนวน สำนักงาน สำคัญ กำหนด คำแนะนำ
+ชำนาญ อำนาจ จำเป็น นำเสนอ ตำแหน่ง สำเร็จ
+สำหรับ กำลัง บำรุง ลำดับ อำเภอ คุณธรรม
+```
+
+## การรักษาขีดและเส้นคั่น
+
+รองรับและรักษา:
+
+```text
+-
+–
+—
+−
+_
+/
+|
+--------------------
+```
+
+จำแนกบทบาทเป็น Document Code, Range, Sentence Separator, Minus Sign และ Section Separator โดยไม่เปลี่ยน Dash ชนิดหนึ่งเป็นอีกชนิดโดยอัตโนมัติ
+
+ตัวอย่างที่ต้องคงเดิม:
+
+```text
+66-F4-007
+INC-2569-001
+RD-Wifi
+ชื่อ-นามสกุล
+หน้า 10–15
+ไทย–อังกฤษ
+08.30-16.30 น.
+LAN / WAN
+A_B_C
+--------------------
+```
+
+## Manual Review
+
+แต่ละหน้าสแกนมีปุ่ม **ข้อความขนาดเล็กและคำไทยยาก** แสดง:
+
+- Original Crop
+- Enhanced Crop
+- Upscale Crop
+- OCR แต่ละ Variant
+- Candidate และ Confidence
+- Dictionary Support
+- Failure Signals
+- ปุ่มยืนยัน
+- ปุ่มใช้ข้อความที่แก้ไข
+- ปุ่มอ่านใหม่
+- ตัวเลือกภาษาเฉพาะ Block
+
+เพิ่มปุ่ม **ล้างหน้าสแกน** เพื่อยกเลิกงาน OCR ชั้นละเอียดและล้างผลลัพธ์ทั้งหมด โดยไม่ลบไฟล์ที่เลือกออกจากรายการ
+
+## ตัวเลือกขั้นสูง
+
+- อ่านเฉพาะข้อความ
+- อ่านข้อความบนรูปภาพด้วย
+- อ่านเฉพาะตาราง
+- อ่านทั้งหมด
+- ข้ามรูป โลโก้ และไอคอน
+- ตรวจสระอำแบบละเอียด
+- ตรวจวรรณยุกต์
+- ตรวจสระบนและล่าง
+- ตรวจคำไทยยาก
+- ตรวจชื่อเฉพาะ
+- รักษาเลขไทย
+- รักษาเครื่องหมายขีด
+- รักษาเส้นคั่น
+- รักษาการขึ้นบรรทัด
+- รักษาหัวข้อ
+- รักษารายการ
+
+ค่าเริ่มต้นเป็น Text Only, ตรวจสระอำ, รักษาขีด/เส้นคั่น และข้ามรูป/โลโก้
 
 ## ตารางและแบบฟอร์ม
 
-หลัง OCR เอกสารแล้ว สามารถกด **ตาราง/ฟอร์ม** ที่แต่ละหน้า หรือเลือกหลายหน้าแล้วกด **วิเคราะห์ตารางหน้าที่เลือก**
+- ตรวจ Grid และ OCR แยก Cell
+- รักษา Empty Cell และ Merged Cell Evidence
+- Numeric Strict Mode
+- ตรวจ Cross-Cell Contamination
+- ตรวจ Checkbox และฟิลด์แบบฟอร์ม
+- ส่งออก CSV, XLSX และ JSON
+- ตัวเลือก Verified Table ทำงานอัตโนมัติหลังบ้าน ไม่แสดงแถบตั้งค่าซ้ำบนหน้าเว็บ
 
-ระบบพื้นฐานสามารถ:
+## OCR Engine และประสิทธิภาพ
 
-- ตรวจเส้นแนวนอนและแนวตั้งของตาราง
-- ตรวจจุดตัดเพื่อยืนยัน Grid
-- OCR แยกทีละ Cell
-- รักษา Cell ว่างตามโครงสร้างที่ตรวจพบ
-- ตรวจขอบที่หายเพื่อประมาณ Merged Cell
-- แสดง Confidence ราย Cell
-- แก้ข้อความใน Cell ได้โดยตรง
-- ตรวจ Checkbox, ฟิลด์แบบฟอร์ม, หัวกระดาษ และท้ายกระดาษ
-- ส่งออกผลวิเคราะห์เป็น CSV, XLSX และ JSON
+- Tesseract.js 7
+- Auto, Turbo สูงสุด 2 Workers และโหมดประหยัด RAM
+- Progress และ ETA
+- Cancel OCR และ Terminate Worker
+- Cache โมเดลภาษาใน Browser
+- Candidate Ranker เลือกเฉพาะผลที่ OCR คืนมา ไม่สร้างคำใหม่
 
-ระบบจะไม่สร้างตารางสมมติเมื่อไม่พบเส้นและจุดตัดที่น่าเชื่อถือ ตารางไม่มีเส้น ตารางซ้อน ภาพเอียงมาก หรือพื้นหลังซับซ้อนอาจต้องครอปและปรับภาพก่อนวิเคราะห์
+## Export
 
-## Verified Table OCR
+TXT, DOCX, Markdown และ PDF ใช้ Unicode UTF-8 และรักษา:
 
-RipScan 1.5 เพิ่มชั้นตรวจสอบหลัง Cell OCR เพื่อป้องกันข้อมูลเลื่อนข้ามแถวหรือคอลัมน์:
+- สระอำและวรรณยุกต์
+- ตัวการันต์และเลขไทย
+- การขึ้นบรรทัดและย่อหน้า
+- ขีดและเส้นคั่น
+- รหัส ชื่อ-นามสกุล และช่วงตัวเลข
 
-- วิเคราะห์ประเภทคอลัมน์จาก Header และค่าหลายแถว
-- Numeric Strict Mode สำหรับจำนวนเต็ม ทศนิยม เงิน เปอร์เซ็นต์ วันที่ และเวลา
-- ทำเครื่องหมาย `O/0`, `I/l/1`, `S/5`, `B/8`, `Z/2`, `G/6` เมื่อยังตัดสินไม่ได้
-- ตรวจ Cell ที่อาจปนข้อความจาก Cell ข้างเคียง
-- ป้องกัน Cell ว่างและ Cell ที่อาจว่าง โดยไม่เติม `0`, `O`, `-` หรือข้อความข้างเคียงเอง
-- สถานะ Cell: Verified, Review Recommended, Manual Review Required, Contaminated, Empty และ Possibly Empty
-- แสดง Tab **ตรวจสอบตาราง** พร้อมเหตุผลและปุ่มไปยัง Cell ที่มีปัญหา
-- นโยบายส่งออก: ทั้งหมด, เฉพาะที่ยืนยันแล้ว, ทำเครื่องหมายจุดต้องตรวจ หรือห้ามส่งออกเมื่อยังมีสีแดง
-- CSV ของชั้นตรวจสอบรองรับ UTF-8 BOM, Empty Cell, Line Break, Delimiter แบบ Comma/Semicolon/Tab และรหัสที่มีเลขศูนย์นำหน้า
-- Structured JSON เก็บ Row Span, Column Span, Confidence, Column Type และ Language Segment
+ผู้ใช้ควรตรวจ Manual Review ก่อนนำเอกสารสำคัญไปใช้งาน
 
-## ไทย–อังกฤษผสมและคำไทยอ่านยาก
+## ผลทดสอบและ Accuracy
 
-- แบ่งข้อความระดับ Segment เป็น Thai, English, Number, Email, URL, Phone, Document Code และ Punctuation
-- รวม Segment กลับได้ตรงข้อความเดิม รวมช่องว่างและเครื่องหมาย
-- Thai Unicode Normalization มีรายการการเปลี่ยนแปลงย้อนหลัง และไม่แปลงเลขไทยหรือแก้คำสะกดเอง
-- Thai Grapheme Analyzer ตรวจสระ วรรณยุกต์ และอักขระประกอบที่ซ้ำหรือขาดฐาน
-- คำไทยยาก คำยาว คำติดเส้นตาราง หรือ Confidence ต่ำจะถูกส่งเข้า Tab **คำไทยอ่านยาก**
-- ชื่อบุคคล ตัวเลข อีเมล URL และรหัสจะไม่ถูกแก้จากบริบทโดยอัตโนมัติ
-- Candidate Ranker เลือกได้เฉพาะ Candidate ที่มาจากหลักฐาน OCR เท่านั้น ไม่สามารถสร้างคำใหม่เอง
-- รองรับ Custom Dictionary ของผู้ใช้ใน Local Storage
-- กำหนดภาษาเฉพาะหน้าเป็น Auto, Thai, English, Thai-English หรือ Numeric/Code ได้
+Vercel Build ล่าสุด:
 
-เอกสารรายละเอียดและข้อจำกัด: `docs/table-mixed-thai-upgrade.md`
+```text
+61 tests
+61 passed
+0 failed
+Syntax check passed
+Static build passed
+```
+
+รายงาน Benchmark ภาพจริงและ Fixture:
+
+```text
+docs/book-cover-thai-ocr-evaluation.md
+```
+
+ตัวเลขในรายงานมีขอบเขตชัดเจน ไม่ใช้ Synthetic Fixture อ้างเป็น Production Accuracy
 
 ## PWA และโหมดออฟไลน์
 
-RipScan สามารถติดตั้งเป็นแอปจากเบราว์เซอร์ที่รองรับ PWA
+1. เปิดเว็บขณะมีอินเทอร์เน็ต
+2. กด **เตรียมใช้งานออฟไลน์**
+3. รอโหลด Tesseract.js, PDF.js และโมเดลภาษา
+4. ติดตั้งผ่านปุ่ม Install App ของ Browser
 
-1. เปิดเว็บด้วย Chrome, Edge หรือเบราว์เซอร์ที่รองรับ
-2. กด **ติดตั้งแอป** เมื่อปุ่มปรากฏ หรือใช้เมนู Install App ของเบราว์เซอร์
-3. ขณะออนไลน์ กด **เตรียมใช้งานออฟไลน์**
-4. รอให้ระบบ Cache หน้าเว็บ, PDF.js, Tesseract.js และโมเดลภาษาไทย–อังกฤษเสร็จ
-5. หลังจากนั้นสามารถเปิดแอปและ OCR รูปภาพได้แม้อินเทอร์เน็ตหลุด
+Cache รุ่นปัจจุบัน: `ripscan-pwa-v1.8.0`
 
-Cache อาจถูกลบเมื่อผู้ใช้ล้างข้อมูลเว็บไซต์หรือระบบปฏิบัติการคืนพื้นที่
-
-## ส่งออกไฟล์
-
-รองรับการส่งออกเฉพาะหน้าที่เลือกหรือทุกหน้า:
-
-- TXT
-- Markdown
-- HTML
-- CSV
-- JSON
-- DOCX
-- XLSX
-- PDF ที่ค้นหาข้อความได้
-
-การส่งออก PDF จะเปิดหน้าพิมพ์ของเบราว์เซอร์ ให้เลือก **Save as PDF** โดย PDF จะมีภาพและข้อความแยกรายหน้า แต่ยังไม่ใช่ Text Overlay ที่วางตรงพิกัด Cell ต้นฉบับทุกคำ
-
-## Automated Tests
+## คำสั่งทดสอบ
 
 ```bash
 npm test
@@ -117,38 +258,17 @@ npm run check
 npm run build
 ```
 
-Build จะรัน Automated Tests ก่อนตรวจ Syntax และสร้าง Static output ใน `dist/`
-
-ชุดปัจจุบันมี **17 Tests** ครอบคลุม:
-
-- ไทย–อังกฤษผสมและการรวมข้อความกลับ
-- Email, URL และ Document Code Preservation
-- Thai Unicode และ Grapheme
-- Numeric Strict Mode
-- Column Type Inference
-- Empty Cell Protection
-- Cross-Cell Contamination
-- Row Consistency
-- Repeated Header และ Multi-page Continuation Evidence
-- Candidate Ranking ที่ห้ามสร้าง Candidate ใหม่
-- Confidence Threshold ของชื่อและรหัส
-- คำไทยอ่านยาก
-- Span, Multiline และเลขศูนย์นำหน้า
-- CSV Escaping
-- CER, WER และ Thai Grapheme Error Rate
-- Catalog ข้อมูล Ground Truth จำลอง 25 ประเภท
-
-ข้อมูลทดสอบ 25 ประเภทเป็น **Synthetic Structural Fixtures** ที่ไม่มีข้อมูลส่วนบุคคลจริง ไม่ใช่ผลทดสอบ OCR จากภาพจริง 25 ภาพ จึงยังไม่ใช้สรุป Accuracy ของ Production
+Build จะรัน Unit Tests, Syntax Check และสร้าง Static output ใน `dist/`
 
 ## เปิดใช้งาน Backend ในเครื่องบน Windows
 
-1. ติดตั้ง **Python 3.11–3.13** และเลือก `Add Python to PATH`
-2. ติดตั้ง **Tesseract OCR** พร้อมภาษา `Thai` และ `English`
-3. ดาวน์โหลดหรือ Clone repository
+1. ติดตั้ง Python 3.11–3.13 และเลือก `Add Python to PATH`
+2. ติดตั้ง Tesseract OCR พร้อมภาษา Thai และ English
+3. Clone repository
 4. ดับเบิลคลิก `run-windows.bat`
 5. เปิด `http://localhost:8000`
 
-หาก Tesseract อยู่ที่ `C:\Program Files\Tesseract-OCR\tesseract.exe` แต่ระบบหาไม่เจอ ให้คัดลอก `.env.example` เป็น `.env` แล้วตั้งค่า:
+หาก Tesseract อยู่ที่ตำแหน่งมาตรฐานแต่ระบบหาไม่เจอ ให้ตั้ง `.env`:
 
 ```env
 TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
@@ -167,8 +287,6 @@ chmod +x run-local.sh
 docker compose up --build
 ```
 
-จากนั้นเปิด `http://localhost:8000`
-
 ## Local API
 
 - หน้าเว็บ: `/`
@@ -176,4 +294,4 @@ docker compose up --build
 - OCR: `POST /api/ocr`
 - OpenAPI: `/docs`
 
-> OCR อาจอ่านชื่อเฉพาะ ตัวเลข หรือตัวอักษรจากภาพไม่ชัดผิดได้ ควรตรวจเทียบต้นฉบับก่อนนำไปใช้ ระบบไม่อ้างว่าแม่น 100%
+> OCR อาจอ่านชื่อเฉพาะ ตัวเลข สระ หรือเครื่องหมายจากภาพที่เล็กหรือเบลอผิดได้ RipScan จะแจ้งจุดที่ควรตรวจและไม่อ้างว่าแม่น 100%
