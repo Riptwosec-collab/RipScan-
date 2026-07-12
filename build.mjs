@@ -17,11 +17,15 @@ const bookUiPath = 'dist/book-ocr-ui.js';
 let bookUi = await readFile(bookUiPath, 'utf8');
 bookUi = bookUi.replace(
   "from './book-ocr-browser.mjs';",
-  "from './book-ocr-browser-hard-block.mjs';",
+  "from './book-ocr-browser-performance.mjs';",
 );
 bookUi = bookUi.replace(
   '    pageResults.set(pageCard, result);',
   "    pageResults.set(pageCard, result);\n    window.__ripscanBookResults ||= new WeakMap();\n    window.__ripscanBookResults.set(pageCard, result);\n    pageCard.dispatchEvent(new CustomEvent('ripscan:book-result', { bubbles: true, detail: result }));",
+);
+bookUi = bookUi.replace(
+  '      options: readControlOptions(document.querySelector(\'#bookOcrOptions\')),',
+  "      options: { ...readControlOptions(document.querySelector('#bookOcrOptions')), performanceWorker: true },\n      pageNumber,",
 );
 await writeFile(bookUiPath, bookUi, 'utf8');
 
@@ -31,6 +35,7 @@ for (const [after, asset] of [
   ['/compact-home.css', '/layout-cover.css'],
   ['/layout-cover.css', '/reference-scale.css'],
   ['/reference-scale.css', '/cover-recovery.css'],
+  ['/cover-recovery.css', '/performance-v22.css'],
 ]) {
   if (!indexHtml.includes(`href="${asset}"`)) {
     indexHtml = indexHtml.replace(
@@ -49,6 +54,7 @@ const scripts = [
   '/book-ocr-ui.js',
   '/cover-ocr-ui.js',
   '/cover-recovery-ui.js',
+  '/performance-v22-ui.js',
 ];
 for (const script of scripts) {
   if (!indexHtml.includes(`src="${script}"`)) {
@@ -85,11 +91,12 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.1.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.2.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
   '/cover-recovery.css',
+  '/performance-v22.css',
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
   '/cover-recovery-core.mjs',
@@ -101,9 +108,13 @@ const assets = [
   '/book-ocr-browser.mjs',
   '/book-ocr-browser-recovery.mjs',
   '/book-ocr-browser-hard-block.mjs',
+  '/book-ocr-browser-performance.mjs',
   '/book-ocr-ui.js',
   '/sara-am-spacing.mjs',
   '/sara-am-recovery-v21.mjs',
+  '/ocr-performance-core.mjs',
+  '/ocr-preprocess-worker.js',
+  '/performance-v22-ui.js',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -112,4 +123,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with Cover Image Hard Block, no-output-leak protection, Broken Sara Am v2.1, and reference-scale layout');
+console.log('RipScan static site built with OCR Worker Queue v2.2, progressive region retry, Cover Image Hard Block, Broken Sara Am recovery, and reference-scale layout');
