@@ -96,13 +96,15 @@ export function collectTextEvidence(features = {}, context = {}) {
 }
 
 function nonTextConsensus(features = {}) {
+  const glyphCount = Number(features.glyphCount || 0);
+  const componentScore = clamp01(features.connectedComponentScore);
   const checks = {
     clearObject: clamp01(features.objectScore) >= 0.78 || bool(features.clearObject),
     photograph: clamp01(features.photoScore ?? features.texture) >= 0.74 && clamp01(features.colorVariance) >= 0.55,
     ornament: clamp01(features.ornamentScore) >= 0.78,
     frame: clamp01(features.frameScore) >= 0.78,
-    noBaseline: clamp01(features.baselineEvidence ?? features.baselineScore) < 0.12,
-    noGlyphs: Number(features.glyphCount || 0) === 0 && clamp01(features.connectedComponentScore) < 0.12,
+    noBaseline: clamp01(features.baselineEvidence ?? features.baselineScore) <= 0.12,
+    noGlyphs: glyphCount <= 1 && componentScore <= 0.15,
     noCandidate: Number(features.ocrCandidateCount || 0) === 0 && !bool(features.hasOcrCandidate),
   };
   const passed = Object.entries(checks).filter(([, value]) => value).map(([key]) => key);
@@ -154,6 +156,17 @@ export function classifyReviewFirstRegion(features = {}, context = {}) {
 
   if (textScore >= REVIEW_FIRST_THRESHOLDS.verifiedText && evidence.count >= 3) {
     return { status: 'verified', regionType: 'text', action: 'text_ocr', confidence: textScore, requiresReview: false, textEvidence: evidence, reasons: [] };
+  }
+  if ((decorative || smallText) && textScore >= possibleThreshold && textScore < REVIEW_FIRST_THRESHOLDS.verifiedText) {
+    return {
+      status: 'possible_text',
+      regionType: 'text',
+      action: 'secondary_text_detection',
+      confidence: textScore,
+      requiresReview: true,
+      textEvidence: evidence,
+      reasons: decorative ? ['decorative_text_candidate'] : ['small_text_candidate'],
+    };
   }
   if (textScore >= REVIEW_FIRST_THRESHOLDS.possibleText && evidence.count >= 2) {
     return { status: 'review_required', regionType: 'text', action: 'text_ocr', confidence: textScore, requiresReview: true, textEvidence: evidence, reasons: ['confidence_below_verified_threshold'] };
