@@ -1,4 +1,5 @@
 import './heading-auto.js';
+import './book-ocr-ui.js';
 
 const AUTO_VERIFIED_SETTINGS = Object.freeze({
   tableMode: 'accurate',
