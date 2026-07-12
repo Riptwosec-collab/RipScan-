@@ -144,20 +144,22 @@ export function buildBrokenSaraAmCandidates(value, evidence = {}) {
     ...spacingIssues(normalizedUnicode, BROKEN_COMPOSED_SPACING, evidence),
   ].sort((a, b) => a.start - b.start);
 
-  const compact = normalizedUnicode.replace(/\s+/gu, '');
-  for (const [confusion, candidates] of Object.entries(PLAIN_CONFUSIONS)) {
-    if (!compact.includes(confusion)) continue;
-    for (const candidate of candidates) {
-      issues.push({
-        type: 'possible_missing_sara_am',
-        detectedPattern: 'plain_sara_aa_confusion',
-        raw: confusion,
-        candidateText: normalizedUnicode.includes(confusion) ? normalizedUnicode.replace(confusion, candidate) : candidate,
-        candidateToken: candidate,
-        replacement: candidate,
-        reason: 'dictionary_supported_confusion_requires_image',
-        requiresImageCheck: true,
-      });
+  if (!issues.some(issue => issue.type === 'broken_sara_am')) {
+    const compact = normalizedUnicode.replace(/\s+/gu, '');
+    for (const [confusion, candidates] of Object.entries(PLAIN_CONFUSIONS)) {
+      if (!compact.includes(confusion)) continue;
+      for (const candidate of candidates) {
+        issues.push({
+          type: 'possible_missing_sara_am',
+          detectedPattern: 'plain_sara_aa_confusion',
+          raw: confusion,
+          candidateText: normalizedUnicode.includes(confusion) ? normalizedUnicode.replace(confusion, candidate) : candidate,
+          candidateToken: candidate,
+          replacement: candidate,
+          reason: 'dictionary_supported_confusion_requires_image',
+          requiresImageCheck: true,
+        });
+      }
     }
   }
 
