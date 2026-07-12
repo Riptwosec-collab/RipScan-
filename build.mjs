@@ -17,7 +17,7 @@ const bookUiPath = 'dist/book-ocr-ui.js';
 let bookUi = await readFile(bookUiPath, 'utf8');
 bookUi = bookUi.replace(
   "from './book-ocr-browser.mjs';",
-  "from './book-ocr-browser-recovery.mjs';",
+  "from './book-ocr-browser-hard-block.mjs';",
 );
 bookUi = bookUi.replace(
   '    pageResults.set(pageCard, result);',
@@ -85,7 +85,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.0.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.1.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -93,14 +93,17 @@ const assets = [
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
   '/cover-recovery-core.mjs',
+  '/cover-hard-block.mjs',
   '/cover-ocr-ui.js',
   '/cover-recovery-ui.js',
   '/book-ocr-core.mjs',
   '/book-ocr-rules.mjs',
   '/book-ocr-browser.mjs',
   '/book-ocr-browser-recovery.mjs',
+  '/book-ocr-browser-hard-block.mjs',
   '/book-ocr-ui.js',
   '/sara-am-spacing.mjs',
+  '/sara-am-recovery-v21.mjs',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -109,4 +112,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with review-first cover recovery, Broken Sara Am analysis, and reference-scale layout');
+console.log('RipScan static site built with Cover Image Hard Block, no-output-leak protection, Broken Sara Am v2.1, and reference-scale layout');
