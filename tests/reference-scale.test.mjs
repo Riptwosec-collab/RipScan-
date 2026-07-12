@@ -16,6 +16,6 @@ test('desktop landing scale matches the approved compact reference', async () =>
 test('reference scale is injected and cached in the production build', async () => {
   const build = await read('build.mjs');
   assert.ok(build.includes('/reference-scale.css'));
-  assert.ok(build.includes('ripscan-pwa-v2.0.0'));
+  assert.ok(build.includes('ripscan-pwa-v2.1.0'));
   assert.ok(build.includes('reference-scale layout'));
 });
