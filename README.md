@@ -1,6 +1,6 @@
 # RipScan — Thai-English OCR
 
-เว็บแปลงภาพและ PDF เป็นข้อความภาษาไทย–อังกฤษ พร้อมตรวจแก้ผลลัพธ์ แยกหน้า ตาราง แบบฟอร์ม และหน้าปกที่มีรูปประกอบ โดยประมวลผลภายใน Browser เป็นหลัก
+เว็บแปลงภาพและ PDF เป็นข้อความภาษาไทย–อังกฤษ พร้อมตรวจแก้ผลลัพธ์ แยกหน้า ตาราง แบบฟอร์ม หน้าปก และข้อความไทยอ่านยาก โดยประมวลผลภายใน Browser เป็นหลัก
 
 ## ใช้งานออนไลน์
 
@@ -15,7 +15,7 @@ https://rip-scan.vercel.app
 - PNG, JPG, WEBP, TIFF, BMP และ PDF
 - ภาษาไทย ภาษาอังกฤษ และไทย–อังกฤษผสม
 - PDF Text Layer และ PDF สแกนสูงสุด 100 หน้า
-- Drag & Drop, เลือกหลายไฟล์ และวางภาพด้วย `Ctrl+V` / `Cmd+V`
+- Drag & Drop, หลายไฟล์ และวางภาพด้วย `Ctrl+V` / `Cmd+V`
 - ปรับภาพเอียง Contrast Threshold และขยายภาพอัตโนมัติ
 - ตรวจภาพคู่ข้อความ พร้อม Zoom หมุน ค้นหา Undo/Redo
 - Thumbnail แยกหน้า ลากจัดลำดับ หมุน ลบ Crop และ OCR ใหม่
@@ -23,21 +23,44 @@ https://rip-scan.vercel.app
 - ส่งออก TXT, Markdown, HTML, CSV, JSON, DOCX, XLSX และ PDF
 - PWA ติดตั้งเป็นแอปและเตรียมใช้งานออฟไลน์
 
-## Layout เวอร์ชัน 1.9
+## RipScan 2.0 — Review-first OCR
 
-หน้าแรกปรับตาม UI น้ำเงิน–ม่วงแบบ Premium:
+เวอร์ชัน 2.0 เปลี่ยนหลักการจาก **Reject เมื่อไม่มั่นใจ** เป็น **เก็บไว้ให้ตรวจ**
 
-- Hero และภาพ OCR ใช้พื้นที่สมดุล
-- กล่องอัปโหลดและตั้งค่า OCR ขยายเต็มพื้นที่
-- ปุ่มและข้อความจัด Grid ไม่ซ้อน ไม่ล้น และไม่ถูกตัด
-- รายการไฟล์ใช้ Ellipsis เมื่อชื่อยาว
-- ปุ่มเริ่ม OCR กว้างเต็มการ์ด
-- Tablet และ Mobile เรียงเป็นคอลัมน์อัตโนมัติ
-- รองรับ Dark/Light Theme และ `prefers-reduced-motion`
+สถานะ Region:
 
-## Cover / Poster OCR
+- `verified`
+- `review_required`
+- `possible_text`
+- `likely_non_text`
+- `confirmed_non_text`
 
-RipScan 1.9 เพิ่ม Pipeline สำหรับหน้าปก หนังสือ ใบงาน โปสเตอร์ เกียรติบัตร Infographic และภาพออกแบบที่มีรูปประกอบจำนวนมาก
+เฉพาะ `confirmed_non_text` เท่านั้นที่ถูกตัดจาก Structured Text และ Export
+
+ค่าเริ่มต้น:
+
+```text
+verified_text_threshold = 0.88
+possible_text_threshold = 0.45
+confirmed_non_text_threshold = 0.15
+decorative_font_possible_threshold = 0.30
+small_text_possible_threshold = 0.25
+```
+
+Text Evidence ใช้หลายเงื่อนไขร่วมกัน โดยไม่บังคับให้ผ่านทุกข้อพร้อมกัน:
+
+- Baseline
+- Glyph Pattern
+- Connected Components แนวนอน
+- OCR Candidate
+- Thai Script Candidate
+- Character Height Consistency
+- Spacing Consistency
+- Expected Text Position
+- Foreground Contrast
+- Line-like Bounding Box
+
+## Cover / Poster OCR Recovery
 
 Document Mode:
 
@@ -50,159 +73,143 @@ Document Mode:
 - `illustrated_document`
 - `normal_document`
 
-ลำดับการทำงาน:
+Cover Zone:
 
-```text
-ตรวจประเภทเอกสาร
-→ แยก Text / Illustration / Barcode
-→ ตรวจหลักฐานบรรทัดข้อความ
-→ OCR แยก Block
-→ ตรวจภาษาไทยและ Gibberish
-→ Confidence Gate
-→ รวมเฉพาะข้อความที่ผ่าน
-```
+1. `top_illustration`
+2. `main_title`
+3. `subtitle`
+4. `class_level`
+5. `author_name`
+6. `school_name`
+7. `organization_name`
+8. `footer_text`
 
-ห้าม OCR ทั้งภาพหน้าปกเป็นข้อความก้อนเดียวในชั้น Cover OCR
+หากหน้าปกพบ Text Block น้อยกว่า 3 หรือไม่พบหัวข้อ/ข้อมูลโรงเรียน ระบบจะทำ Recovery Scan เพิ่มเติม
 
-## Text vs Illustration
+Recovery Variant:
 
-Region ที่รองรับ:
+- Original
+- Padded Crop
+- Upscale 4x
+- Upscale 6x
+- Color Isolation
+- Grayscale
+- CLAHE-like Contrast
+- Background Removal
+- Edge-preserving Sharpen
+- Soft Binary Mask
 
-- `text`
-- `photograph`
-- `illustration`
-- `cartoon`
-- `logo`
-- `icon`
-- `decorative_frame`
-- `ornament`
-- `separator`
-- `background_shape`
-- `barcode`
-- `qr_code`
-- `unknown`
+ข้อความสีทอง สีขาว ฟอนต์หนา ฟอนต์ประดิษฐ์ และข้อความเล็กด้านล่างจะถูกเก็บเป็น `possible_text` หรือ `review_required` แทนการลบทิ้งทันที
 
-เฉพาะ Region ประเภท `text` ที่ผ่านหลักฐานต่อไปนี้จึงเข้าสู่ Text OCR:
+## Non-Text Safety
 
-- Baseline Evidence
-- Character-like Connected Components
-- Glyph Alignment
-- Character Height Consistency
-- Spacing Consistency
-- Text-line Score
-- จำนวน Glyph ขั้นต่ำ
+ระบบจะยืนยัน `confirmed_non_text` เมื่อ:
 
-กรอบ ลายไทย ตัวละคร เหรียญ ไอคอน และพื้นที่สีที่ไม่มีหลักฐานข้อความจะถูกข้าม
+- ไม่มี Baseline
+- ไม่มี Glyph Pattern
+- ไม่มี OCR Candidate
+- มีหลักฐานรูป/ลวดลายชัดเจน
+- ตัวตรวจ Non-Text หลายรอบตรงกัน
+- หรือผู้ใช้กด **เป็นรูป ไม่ใช่ข้อความ**
 
-## Gibberish Detector
+Region ที่ยังไม่แน่ใจจะเป็น `likely_non_text` และเข้าสู่ Secondary Detection
 
-ระบบ Reject หรือส่ง Manual Review เมื่อพบ:
+Barcode และ QR Code ถูกส่งไป Barcode Reader ไม่เข้าสู่ Text OCR
 
-- สัญลักษณ์มากกว่า 25%
-- Script เปลี่ยนหลายครั้งใน Token เดียว
-- พยางค์ไทยผิดรูปแบบ
-- อักขระ `| [ ] + @ #` ซ้ำผิดปกติ
-- Token สั้นกระจัดกระจายจากรูปประกอบ
-- OCR Confidence ต่ำ
-- ไม่มี Baseline หรือ Bounding Box ไม่ตรงข้อความ
+## Overlay และ Manual Review
 
-ตัวอย่างที่ต้อง Reject:
+Document Viewer แสดงกรอบ:
 
-```text
-| 3ร5ณส้ ๕๕ (0
-คศั 7ฝ7@
-[กงหด7
-```
+- เขียว: `verified`
+- เหลือง: `review_required`
+- ส้ม: `possible_text`
+- เทา: `likely_non_text`
+- ไม่แสดง `confirmed_non_text`
 
-ข้อความที่ถูก Reject จะไม่อยู่ใน Export
+Toggle:
 
-## Decorative Thai Font
+- แสดงข้อความทั้งหมด
+- เฉพาะข้อความยืนยันแล้ว
+- พื้นที่ที่ควรตรวจ
+- Non-Text ที่ยังไม่ยืนยัน
 
-สำหรับฟอนต์ไทยประดิษฐ์ สีทอง สีขาว ตัวหนา ตัวเขียน มีเงา หรืออยู่บน Gradient ระบบเตรียม Variant:
+ผู้ใช้สามารถ:
 
-1. Original Crop
-2. Upscale 4x
-3. Upscale 6x
-4. Grayscale
-5. Contrast Soft
-6. CLAHE-like Contrast
-7. Background Flattened
-8. Edge-preserving Sharpen
-9. Color Isolation
-10. Text Mask
-11. HSV Foreground Extraction เมื่อ Contrast ต่ำ
-
-ระบบ OCR ทั้งบรรทัดก่อนอ่านระดับคำ
-
-## Name / School Protection
-
-ข้อความประเภทต่อไปนี้ใช้เกณฑ์สูงกว่าปกติ:
-
-- ชื่อบุคคล
-- ชื่อโรงเรียน
-- ชื่อหน่วยงาน
-- ชั้นเรียน
-- หัวข้อหน้าปก
-
-ชื่อบุคคลและโรงเรียนจะไม่ถูกแก้จากพจนานุกรมทั่วไป ถ้าหลักฐานไม่พอจะแสดง Manual Review เช่น:
-
-```text
-[โปรดตรวจสอบชื่อบุคคล]
-[โปรดตรวจสอบชื่อโรงเรียน]
-```
-
-## Confidence Gate
-
-ค่าเป้าหมาย:
-
-```text
-Text Region Confidence >= 0.90
-OCR Confidence >= 0.90
-Script Confidence >= 0.92
-Thai Grapheme Confidence >= 0.94
-Protected Name/School OCR >= 0.97
-```
-
-ผลลัพธ์เป็นหนึ่งใน:
-
-- `accepted`
-- `manual_review`
-- `rejected_as_non_text`
-
-## ตรวจข้อความจากหน้าปก
-
-แต่ละหน้ามีปุ่ม **ตรวจข้อความจากหน้าปก** ผู้ใช้สามารถ:
-
-- ดูภาพต้นฉบับและ Text Block
-- ดูจำนวน Non-Text Region ที่ข้าม
-- วาดกรอบข้อความเอง
-- ลบกรอบที่จับผิด
-- ระบุภาษา
-- ระบุเป็นหัวข้อ ชื่อบุคคล ชื่อโรงเรียน หน่วยงาน หรือชั้นเรียน
-- อ่านใหม่เฉพาะกรอบ
+- ลากกรอบข้อความเอง
+- เลือกภาษา
+- ระบุหัวข้อ ชื่อบุคคล ชื่อโรงเรียน หน่วยงาน หรือชั้นเรียน
+- OCR พื้นที่ที่ลากทันที
+- อ่านใหม่เฉพาะ Block
+- แก้ข้อความ
+- ยืนยัน Block
 - ระบุว่าเป็นรูป ไม่ใช่ข้อความ
-- ตรวจ OCR Candidate และ Confidence
-- ยืนยันก่อนเพิ่มข้อความเข้าเอกสาร
 
-## สระอำและ Thai Grapheme
+## Broken Sara Am — สระอำแยกเป็นช่องว่าง
 
-- Normalize Unicode จาก `ํา` เป็น `ำ` พร้อม Change Log
-- ตรวจสระอำหาย เช่น `จานวน`, `ดาเนินการ`, `สานักงาน`
-- ไม่แทนคำอัตโนมัติจากพจนานุกรม
-- Confidence สระอำต่ำกว่า 96% ส่ง Review
-- ตรวจ Floating Mark, สระ/วรรณยุกต์ไม่มีฐาน และ Unicode Order
-- รักษาเลขไทยและเครื่องหมายไทย
-
-## ขีดและเส้นคั่น
-
-รักษาแยกชนิด:
+ตรวจรูปแบบ เช่น:
 
 ```text
--  –  —  −  _  /  |
---------------------
+การน าเสนอ
+การด าเนินงาน
+จ านวน
+ส านักงาน
+ค าแนะน า
+ช านาญ
+ส าคัญ
+ก าหนด
+ต าแหน่ง
+ส าเร็จ
+อ าเภอ
+ส าหรับ
+ล าดับ
 ```
 
-ตัวอย่างที่ต้องไม่เปลี่ยน:
+ระบบทำงานตามลำดับ:
+
+1. เก็บ Raw OCR
+2. Unicode Normalize
+3. ตรวจ Zero-width Character
+4. ตรวจ Broken Grapheme
+5. ตรวจ Broken Sara Am
+6. ตรวจ Internal Whitespace
+7. ตรวจ Thai Syllable
+8. สร้าง Candidate
+9. ตรวจ Image Evidence
+10. Auto-fix หรือส่ง Manual Review
+
+Auto-fix ทำได้เมื่อ:
+
+- OCR อย่างน้อย 2 Variant เห็น `ำ`
+- Image Evidence ≥ 0.98
+- Bounding Box สนับสนุน
+- Thai Grapheme/Syllable ถูกต้อง
+- Provider Agreement ผ่าน
+- Confidence ≥ 0.98
+- ไม่ใช่ชื่อเฉพาะ
+
+คำจริง เช่น `นา`, `ดา`, `ลา`, `อา`, `ตา` จะไม่ถูกเปลี่ยนเป็นสระอำอัตโนมัติ
+
+Crop สำหรับคำที่สงสัยใช้ Padding:
+
+```text
+top = 30%
+bottom = 15%
+left/right = 15%
+```
+
+เพื่อไม่ให้จุดนิคหิตด้านบนถูกตัด
+
+## Export
+
+ข้อความที่ส่งออก:
+
+- รวม `verified`
+- เก็บ `review_required` พร้อม `[โปรดตรวจสอบ: ...]`
+- เก็บ `possible_text` พร้อม `[อาจเป็นข้อความ: ...]`
+- ไม่รวม `confirmed_non_text`
+- เมื่อผู้ใช้ยืนยันแล้ว ใช้ข้อความที่ยืนยันแทน Marker
+
+ยังคงรักษา:
 
 ```text
 66-F4-007
@@ -214,6 +221,7 @@ RD-Wifi
 08.30-16.30 น.
 LAN / WAN
 A_B_C
+--------------------
 ```
 
 ## ตารางและแบบฟอร์ม
@@ -238,43 +246,7 @@ A_B_C
 
 Retry ไม่มีการหักเครดิต เพราะเวอร์ชันนี้ยังไม่มีระบบเครดิต
 
-## ผลทดสอบ
-
-Vercel Preview ล่าสุด:
-
-```text
-79 tests
-79 passed
-0 failed
-Syntax check passed
-Static build passed
-```
-
-รายงานผลภาพจริงและ Controlled Fixture:
-
-```text
-docs/cover-poster-ocr-evaluation-v1.9.md
-```
-
-ผลวัดแบบ Text Regions ที่กำหนด Ground Truth:
-
-| ชุดทดสอบ | Whole-page CER | Block OCR CER | Noise-line ก่อน | หลัง |
-|---|---:|---:|---:|---:|
-| ภาพจริงที่ผู้ใช้ส่ง | 68.71% | 23.56% | 47.06% | 0.00% |
-| Illustrated Fixture | 32.11% | 23.85% | 28.57% | 0.00% |
-
-ตัวเลข Block OCR วัดเมื่อทราบ Text Region หรือผู้ใช้วาดกรอบแล้ว ไม่ใช่ Accuracy ของ Automatic Detector แบบ End-to-End และไม่ใช้ Fixture อ้างเป็น Production Accuracy
-
-## PWA
-
-1. เปิดเว็บขณะออนไลน์
-2. กดเตรียมใช้งานออฟไลน์
-3. รอโหลด Tesseract.js, PDF.js และโมเดลภาษา
-4. ติดตั้งผ่านเมนู Install App ของ Browser
-
-Production Build ใช้ Cache รุ่น `ripscan-pwa-v1.9.0`
-
-## คำสั่งทดสอบ
+## ทดสอบและ Build
 
 ```bash
 npm test
@@ -282,49 +254,27 @@ npm run check
 npm run build
 ```
 
-## เปิดใช้งาน Local
+Build จะตรวจ Unit/Regression Tests, JavaScript Syntax และสร้าง Static output ที่ `dist/`
 
-Windows:
-
-1. ติดตั้ง Python 3.11–3.13 และเลือก `Add Python to PATH`
-2. ติดตั้ง Tesseract OCR พร้อมภาษา Thai และ English
-3. Clone repository
-4. ดับเบิลคลิก `run-windows.bat`
-5. เปิด `http://localhost:8000`
-
-กรณีหา Tesseract ไม่พบ:
-
-```env
-TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
-```
-
-macOS / Linux:
+## รัน Local
 
 ```bash
-chmod +x run-local.sh
-./run-local.sh
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+npm install
+npm run build
+uvicorn api.index:app --host 0.0.0.0 --port 8000
 ```
 
-Docker:
+เปิด `http://localhost:8000`
 
-```bash
-docker compose up --build
-```
+## รายงานการประเมิน
 
-## Local API
+ดูรายละเอียด:
 
-- หน้าเว็บ: `/`
-- Health check: `/api/health`
-- OCR: `POST /api/ocr`
-- OpenAPI: `/docs`
+- `docs/review-first-cover-sara-am-v2.md`
+- `docs/cover-poster-ocr-evaluation-v1.9.md`
+- `docs/book-cover-thai-ocr-evaluation.md`
 
-## ข้อจำกัด
-
-- Automatic Region Classifier ใน Browser เป็น Image Heuristic ไม่ใช่ Object Detection Model ขนาดใหญ่
-- ภาพพญานาคต้นฉบับที่กล่าวถึงในข้อกำหนดไม่ได้แนบมาในรอบนี้ จึงยังไม่มีผลเฉพาะภาพนั้น
-- ข้อความทับรูปภาพซับซ้อนอาจต้องวาดกรอบเอง
-- Browser ที่ไม่มี BarcodeDetector ไม่รับประกันการถอด EAN/QR
-- ยังไม่มี Dataset หน้าปกจริงพร้อม Bounding Box จำนวนมากพอสำหรับ Production Text Region Accuracy
-- UI Regression Test ผ่าน แต่ยังไม่ได้รัน Playwright E2E บนทุก Browser
-
-> RipScan ไม่อ้างว่าแม่น 100% เมื่อภาพเล็ก เบลอ มีฟอนต์ประดิษฐ์ หรือหลักฐานไม่พอ ระบบจะส่ง Manual Review แทนการเดา
+> RipScan ไม่รับประกันความแม่น 100% ข้อความที่ภาพไม่ชัด ชื่อเฉพาะ และฟอนต์ประดิษฐ์จะถูกส่ง Manual Review แทนการเดา
