@@ -24,6 +24,12 @@ if (!indexHtml.includes('/layout-cover.css')) {
     '<link rel="stylesheet" href="/compact-home.css">\n  <link rel="stylesheet" href="/layout-cover.css">',
   );
 }
+if (!indexHtml.includes('/reference-scale.css')) {
+  indexHtml = indexHtml.replace(
+    '<link rel="stylesheet" href="/layout-cover.css">',
+    '<link rel="stylesheet" href="/layout-cover.css">\n  <link rel="stylesheet" href="/reference-scale.css">',
+  );
+}
 if (!indexHtml.includes('class="hero-support"')) {
   indexHtml = indexHtml.replace(
     '        </h1>\n      </div>',
@@ -56,12 +62,12 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v1.9.0');
-for (const asset of ['/layout-cover.css', '/cover-ocr-core.mjs', '/cover-ocr-rules.mjs', '/cover-ocr-ui.js']) {
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v1.9.1');
+for (const asset of ['/layout-cover.css', '/reference-scale.css', '/cover-ocr-core.mjs', '/cover-ocr-rules.mjs', '/cover-ocr-ui.js']) {
   if (!serviceWorker.includes(`'${asset}'`)) {
     serviceWorker = serviceWorker.replace("  '/compact-home.css',", `  '/compact-home.css',\n  '${asset}',`);
   }
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built in dist/ with cover OCR gates, manual regions, and balanced layout');
+console.log('RipScan static site built with cover OCR gates and reference-scale desktop layout');

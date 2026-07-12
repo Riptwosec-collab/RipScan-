@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read = path => readFile(path, 'utf8');
+
+test('desktop landing scale matches the approved compact reference', async () => {
+  const css = await read('web/reference-scale.css');
+  assert.match(css, /width:\s*min\(100%,\s*1320px\)/);
+  assert.match(css, /font-size:\s*clamp\(56px,\s*3\.8vw,\s*72px\)/);
+  assert.match(css, /min-height:\s*312px/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(0,\s*1\.05fr\)/);
+  assert.match(css, /width:\s*min\(100%,\s*760px\)/);
+});
+
+test('reference scale is injected and cached in the production build', async () => {
+  const build = await read('build.mjs');
+  assert.ok(build.includes('/reference-scale.css'));
+  assert.ok(build.includes('ripscan-pwa-v1.9.1'));
+  assert.ok(build.includes('reference-scale desktop layout'));
+});
