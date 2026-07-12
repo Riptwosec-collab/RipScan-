@@ -12,6 +12,7 @@ export * from './cover-recovery-core.mjs';
 
 const clamp01 = value => Math.max(0, Math.min(1, Number(value || 0)));
 const THAI = /[ก-๙]/u;
+const EXPLICIT_NON_TEXT = new Set(['image', 'logo', 'icon', 'illustration', 'photograph', 'cartoon', 'decorative_frame', 'ornament', 'background_shape']);
 
 export function classifyCoverRegion(features = {}) {
   const ornamentScore = clamp01(features.ornamentScore);
@@ -144,6 +145,11 @@ export function confidenceGate(block = {}) {
 export function filterCoverOutput(blocks = []) {
   const normalized = blocks.map(block => {
     if (block.status && ['verified', 'review_required', 'possible_text', 'likely_non_text', 'confirmed_non_text'].includes(block.status)) return block;
+    const regionType = block.regionType || block.type;
+    const hasEvidence = Number.isFinite(Number(block.textRegionConfidence)) || Number.isFinite(Number(block.regionConfidence)) || Number.isFinite(Number(block.ocrConfidence)) || Number.isFinite(Number(block.confidence));
+    if (EXPLICIT_NON_TEXT.has(regionType) && !String(block.text || '').trim() && !hasEvidence) {
+      return { ...block, status: 'confirmed_non_text', gate: { status: 'confirmed_non_text', accepted: false, requiresReview: false, failures: [`legacy_explicit_${regionType}`] } };
+    }
     const gate = block.gate || confidenceGate(block);
     return { ...block, gate, status: gate.status, type: gate.type || block.type };
   });
