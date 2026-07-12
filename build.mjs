@@ -41,6 +41,10 @@ await writeFile(indexPath, indexHtml, 'utf8');
 const coverUiPath = 'dist/cover-ocr-ui.js';
 let coverUi = await readFile(coverUiPath, 'utf8');
 coverUi = coverUi.replace(
+  "from './cover-ocr-core.mjs';",
+  "from './cover-ocr-rules.mjs';",
+);
+coverUi = coverUi.replace(
   "  const grayscale = grayscaleCanvas(up4);",
   "  const cropUrl = original.toDataURL('image/jpeg', .88);\n  const enhancedUrl = up4.toDataURL('image/jpeg', .88);\n  const grayscale = grayscaleCanvas(up4);",
 );
@@ -53,7 +57,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
 serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v1.9.0');
-for (const asset of ['/layout-cover.css', '/cover-ocr-core.mjs', '/cover-ocr-ui.js']) {
+for (const asset of ['/layout-cover.css', '/cover-ocr-core.mjs', '/cover-ocr-rules.mjs', '/cover-ocr-ui.js']) {
   if (!serviceWorker.includes(`'${asset}'`)) {
     serviceWorker = serviceWorker.replace("  '/compact-home.css',", `  '/compact-home.css',\n  '${asset}',`);
   }
