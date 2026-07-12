@@ -13,7 +13,7 @@ import {
   evaluateTextLineEvidence,
   filterCoverOutput,
   groupCoverTextBlocks,
-} from '../web/cover-ocr-core.mjs';
+} from '../web/cover-ocr-rules.mjs';
 
 test('cover classifier selects illustrated cover instead of normal document', () => {
   const result = classifyCoverDocument({ illustrationRatio: .62, photographRatio: .08, textAreaRatio: .24, titleProminence: .78, textBlockCount: 4 });
@@ -61,11 +61,12 @@ test('document codes and phone numbers are not rejected as gibberish', () => {
   assert.notEqual(detectGibberish('02-218-1000', { confidence: .94 }).status, 'rejected_as_non_text');
 });
 
-test('protected text identifies names schools class levels and titles', () => {
+test('protected text identifies names schools class levels titles and paragraphs', () => {
   assert.equal(classifyProtectedText('นางสาวชญาณี จิตต์ซื่อ'), 'person_name');
   assert.equal(classifyProtectedText('โรงเรียนตัวอย่าง กรุงเทพมหานคร'), 'school_name');
   assert.equal(classifyProtectedText('ชั้นมัธยมศึกษาปีที่ ๑'), 'class_level');
   assert.equal(classifyProtectedText('ใบกิจกรรมวรรณคดี'), 'title');
+  assert.equal(classifyProtectedText('เนื้อหายาวสำหรับอธิบายการทำงานของเอกสารในย่อหน้าและมีรายละเอียดครบถ้วน'), 'paragraph');
 });
 
 test('confidence gate is strict for names and never auto-accepts low evidence', () => {
