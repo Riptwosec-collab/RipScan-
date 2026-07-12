@@ -20,6 +20,7 @@ const APP_SHELL = [
   '/heading-auto.js',
   '/heading-structure.mjs',
   '/book-ocr-core.mjs',
+  '/book-ocr-rules.mjs',
   '/book-ocr-browser.mjs',
   '/book-ocr-ui.js',
   '/theme-ui.js',
