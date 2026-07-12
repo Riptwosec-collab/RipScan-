@@ -7,17 +7,9 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('landing page contains required dual-theme controls and OCR elements', async () => {
   const html = await read('web/index.html');
   for (const required of [
-    'data-theme="dark"',
-    'id="themeToggle"',
-    'id="chooseFileButton"',
-    'id="dropzone"',
-    'id="fileInput"',
-    'id="runButton"',
-    'id="language"',
-    'id="automaticVerifiedSettings"',
-    'href="/redesign.css"',
-    'href="/compact-home.css"',
-    'src="/theme-ui.js"',
+    'data-theme="dark"', 'id="themeToggle"', 'id="chooseFileButton"', 'id="dropzone"',
+    'id="fileInput"', 'id="runButton"', 'id="language"', 'id="automaticVerifiedSettings"',
+    'href="/redesign.css"', 'href="/compact-home.css"', 'src="/theme-ui.js"',
   ]) assert.ok(html.includes(required), `missing ${required}`);
 });
 
@@ -42,16 +34,9 @@ test('theme CSS defines dark and light variable systems', async () => {
   const css = await read('web/redesign.css');
   assert.match(css, /html\[data-theme="dark"\]/);
   assert.match(css, /html\[data-theme="light"\]/);
-  for (const variable of [
-    '--bg-primary',
-    '--surface',
-    '--surface-border',
-    '--text-primary',
-    '--accent-primary',
-    '--button-gradient',
-    '--glow-color',
-    '--shadow-color',
-  ]) assert.ok(css.includes(variable), `missing ${variable}`);
+  for (const variable of ['--bg-primary','--surface','--surface-border','--text-primary','--accent-primary','--button-gradient','--glow-color','--shadow-color']) {
+    assert.ok(css.includes(variable), `missing ${variable}`);
+  }
 });
 
 test('compact layout is responsive and supports a single-screen desktop view', async () => {
@@ -89,13 +74,31 @@ test('verified table settings run automatically without rendering controls', asy
   assert.ok(js.includes("dataset.verifiedSettings = 'automatic'"));
 });
 
-test('PWA shell includes compact layout and automatic heading assets', async () => {
+test('book-cover OCR UI provides requested options and clear scan button', async () => {
+  const js = await read('web/book-ocr-ui.js');
+  for (const required of [
+    'id="bookOcrMode"', 'อ่านเฉพาะข้อความ', 'อ่านข้อความบนรูปภาพด้วย', 'ข้ามรูป โลโก้ และไอคอน',
+    'ตรวจสระอำแบบละเอียด', 'รักษาเครื่องหมายขีด', 'รักษาเส้นคั่น', 'ล้างหน้าสแกน',
+    'ข้อความขนาดเล็กและคำไทยยาก', 'Original Crop', 'Enhanced Crop', 'Upscale Crop',
+  ]) assert.ok(js.includes(required), `missing ${required}`);
+  assert.ok(js.includes("event.target.closest('#clearScanPagesButton')"));
+});
+
+test('book-cover CSS is responsive and review focused', async () => {
+  const css = await read('web/book-ocr.css');
+  assert.ok(css.includes('.book-review-panel'));
+  assert.ok(css.includes('.book-crops'));
+  assert.ok(css.includes('.book-confidence-row'));
+  assert.ok(css.includes('@media(max-width:700px)'));
+  assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
+});
+
+test('PWA shell includes compact, heading and book OCR assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v1.7.0'));
-  assert.ok(serviceWorker.includes("'/redesign.css'"));
-  assert.ok(serviceWorker.includes("'/compact-home.css'"));
-  assert.ok(serviceWorker.includes("'/theme-ui.js'"));
-  assert.ok(serviceWorker.includes("'/verified-ui-fix.js'"));
-  assert.ok(serviceWorker.includes("'/heading-auto.js'"));
-  assert.ok(serviceWorker.includes("'/heading-structure.mjs'"));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v1.8.0'));
+  for (const asset of [
+    "'/redesign.css'", "'/compact-home.css'", "'/book-ocr.css'", "'/theme-ui.js'",
+    "'/verified-ui-fix.js'", "'/heading-auto.js'", "'/heading-structure.mjs'",
+    "'/book-ocr-core.mjs'", "'/book-ocr-browser.mjs'", "'/book-ocr-ui.js'",
+  ]) assert.ok(serviceWorker.includes(asset), `missing ${asset}`);
 });
