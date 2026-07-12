@@ -1,0 +1,43 @@
+name: RipScan CI
+
+on:
+  push:
+    branches:
+      - main
+      - fix/review-first-cover-sara-am
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ripscan-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit and regression tests
+        run: npm test
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Static build
+        run: node build.mjs
