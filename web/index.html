@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="/advanced.css">
   <link rel="stylesheet" href="/verified.css">
   <link rel="stylesheet" href="/redesign.css">
+  <link rel="stylesheet" href="/compact-home.css">
 </head>
 <body>
   <div class="site-backdrop" aria-hidden="true">
@@ -40,18 +41,11 @@
     <span class="star-field"></span>
   </div>
 
-  <header class="topbar" id="home">
+  <header class="topbar compact-topbar" id="home">
     <a class="brand" href="#home" aria-label="RipScan หน้าแรก">
-      <span class="brand-mark">R</span>
+      <span class="brand-mark compact-brand-mark">OCR</span>
       <span class="brand-copy"><strong>RipScan</strong><small>Thai–English OCR</small></span>
     </a>
-
-    <nav class="main-nav" id="mainNav" aria-label="เมนูหลัก">
-      <a class="active" href="#home" aria-current="page">หน้าแรก</a>
-      <a href="#upload">วิธีใช้งาน</a>
-      <a href="#featureBar">ราคา</a>
-      <a href="#siteFooter">ติดต่อ</a>
-    </nav>
 
     <div class="header-actions">
       <div id="health" class="health" aria-live="polite"><span class="dot"></span><span>กำลังโหลด OCR</span></div>
@@ -60,17 +54,18 @@
         <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
       </button>
       <button class="language-chip" type="button" aria-label="ภาษาปัจจุบัน ภาษาไทย"><span aria-hidden="true">🇹🇭</span><strong>TH</strong></button>
-      <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="เปิดเมนู" aria-controls="mainNav" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </header>
 
-  <main>
-    <section class="hero" aria-labelledby="heroTitle">
+  <main class="compact-main">
+    <section class="hero compact-hero" aria-labelledby="heroTitle">
       <div class="hero-copy reveal-item">
-        <p class="eyebrow">PRIVATE BROWSER OCR</p>
-        <h1 id="heroTitle">เปลี่ยนภาพและ PDF<br><span>เป็นข้อความที่ตรวจแก้ได้</span></h1>
+        <h1 id="heroTitle">
+          <span class="hero-line">เปลี่ยนภาพ</span>
+          <span class="hero-line">และ PDF</span>
+          <span class="hero-line gradient-line">เป็นข้อความที่</span>
+          <span class="hero-line gradient-line">ตรวจแก้ได้</span>
+        </h1>
       </div>
 
       <div class="hero-visual reveal-item" aria-label="ภาพประกอบกระบวนการแปลง PDF เป็นข้อความด้วย OCR">
@@ -107,9 +102,9 @@
       </div>
     </section>
 
-    <section class="upload-shell reveal-item" id="upload" aria-labelledby="uploadTitle">
-      <div class="panel upload-panel">
-        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
+    <section class="ocr-workspace reveal-item" id="upload" aria-labelledby="uploadTitle">
+      <div class="panel upload-panel compact-upload-panel">
+        <div id="dropzone" class="dropzone compact-dropzone" tabindex="0" role="button" aria-describedby="pasteHint">
           <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,image/bmp,application/pdf" multiple hidden>
           <div class="upload-art" aria-hidden="true">
             <span class="mini-file mini-pdf">PDF</span>
@@ -130,17 +125,31 @@
           </div>
           <span id="pasteHint" class="paste-hint">กด Ctrl+V หรือ ⌘+V เพื่อวางรูปภาพ</span>
         </div>
+        <div id="fileList" class="file-list compact-file-list"></div>
+      </div>
 
-        <div id="fileList" class="file-list"></div>
-        <div class="controls">
+      <aside class="panel settings-panel" aria-labelledby="settingsTitle">
+        <div class="settings-heading">
+          <span class="settings-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V20.3h-3v-.09a1.7 1.7 0 0 0-1.03-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.55-1.03H5.3v-3h.15A1.7 1.7 0 0 0 7 9.94a1.7 1.7 0 0 0-.34-1.88L6.6 8l2.12-2.12.06.06A1.7 1.7 0 0 0 10.66 6a1.7 1.7 0 0 0 1.03-1.55V4.3h3v.15A1.7 1.7 0 0 0 15.72 6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1.03h.15v3h-.15A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+          </span>
+          <div><strong id="settingsTitle">ตั้งค่าการประมวลผล OCR</strong><small>เลือกภาษาและเริ่มแปลงข้อความ</small></div>
+        </div>
+
+        <div class="controls compact-controls">
           <label>ภาษา OCR
             <select id="language">
-              <option value="auto">ไทย + English</option>
+              <option value="auto">🇹🇭 ไทย + English</option>
               <option value="th">ภาษาไทย</option>
               <option value="en">English</option>
               <option value="th+en">ไทย + English</option>
             </select>
           </label>
+
+          <label>ผลลัพธ์
+            <span class="readonly-setting">ข้อความที่แก้ไขได้</span>
+          </label>
+
           <button id="clearButton" class="secondary clear-button" type="button" disabled>ล้างรายการ</button>
           <button id="runButton" class="primary run-button" type="button" disabled>
             <span class="button-label">เริ่มแปลงข้อความ</span>
@@ -148,34 +157,33 @@
             <svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
           </button>
         </div>
+
         <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span></div>
         <div id="error" class="error" hidden></div>
-      </div>
+      </aside>
     </section>
 
-    <section class="feature-bar reveal-item" id="featureBar" aria-label="คุณสมบัติหลัก">
+    <section class="feature-bar compact-feature-bar reveal-item" id="featureBar" aria-label="คุณสมบัติหลัก">
       <article class="feature-item">
         <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z"/></svg></span>
         <strong>รวดเร็ว</strong>
+      </article>
+      <article class="feature-item">
+        <span class="feature-icon text-icon">◎</span>
+        <strong>แม่นยำ</strong>
       </article>
       <article class="feature-item">
         <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
         <strong>ปลอดภัย 100%</strong>
       </article>
       <article class="feature-item">
-        <span class="feature-icon text-icon">Aa</span>
-        <strong>แม่นยำสูง</strong>
-      </article>
-      <article class="feature-item">
         <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7V3Z"/><path d="M15 3v5h5M4 7v14h11"/></svg></span>
-        <strong>รองรับหลายไฟล์</strong>
+        <strong>พร้อมใช้งาน</strong>
       </article>
     </section>
 
     <section id="results" class="results" aria-live="polite"></section>
   </main>
-
-  <footer id="siteFooter">RipScan — Thai–English OCR</footer>
 
   <div id="automaticVerifiedSettings" hidden aria-hidden="true">
     <input id="tableMode" type="hidden" value="accurate">
