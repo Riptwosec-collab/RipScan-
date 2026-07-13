@@ -22,5 +22,5 @@ test('reference scale performance table and Document Studio assets are injected 
   assert.ok(build.includes('/document-studio.css'));
   assert.ok(build.includes('/document-studio.js'));
   assert.ok(build.includes('ripscan-pwa-v3.0.0'));
-  assert.ok(build.includes('reference-scale layout'));
+  assert.ok(build.includes('Document Reconstruction Studio v3'));
 });
