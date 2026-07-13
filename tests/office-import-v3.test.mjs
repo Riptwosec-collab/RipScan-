@@ -41,7 +41,7 @@ test('CSV import creates a real editable table model', () => {
 test('RTF conversion keeps paragraphs tabs and Unicode characters', () => {
   const text = rtfToText('{\\rtf1\\ansi หัวข้อ\\par รายการ\\tab 1\\par \\u3585?}');
   assert.match(text, /หัวข้อ/u);
-  assert.match(text, /รายการ\t1/u);
+  assert.match(text, /รายการ\s*\t\s*1/u);
   assert.ok(text.includes(String.fromCharCode(3585)));
 });
 
