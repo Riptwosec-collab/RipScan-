@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production build wires performance pipeline worker UI and PWA cache', async () => {
+test('production build wires performance pipeline worker UI table automation and PWA cache', async () => {
   const build = await read('build.mjs');
   for (const required of [
     'book-ocr-browser-performance.mjs',
@@ -12,7 +12,10 @@ test('production build wires performance pipeline worker UI and PWA cache', asyn
     '/ocr-performance-core.mjs',
     '/performance-v22-ui.js',
     '/performance-v22.css',
-    'ripscan-pwa-v2.2.0',
+    '/table-structure-core.mjs',
+    '/table-auto-ui.js',
+    '/table-auto.css',
+    'ripscan-pwa-v2.3.0',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 
