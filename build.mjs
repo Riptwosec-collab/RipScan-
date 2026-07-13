@@ -41,6 +41,7 @@ for (const [after, asset] of [
   ['/reference-scale.css', '/cover-recovery.css'],
   ['/cover-recovery.css', '/performance-v22.css'],
   ['/performance-v22.css', '/table-auto.css'],
+  ['/table-auto.css', '/document-studio.css'],
 ]) {
   if (!indexHtml.includes(`href="${asset}"`)) {
     indexHtml = indexHtml.replace(
@@ -52,7 +53,7 @@ for (const [after, asset] of [
 if (!indexHtml.includes('class="hero-support"')) {
   indexHtml = indexHtml.replace(
     '        </h1>\n      </div>',
-    '        </h1>\n        <p class="hero-support">อัปโหลดไฟล์ PDF, PNG, JPG หรือวางจากคลิปบอร์ด ตั้งค่าการประมวลผล OCR แล้วแปลงเป็นข้อความที่ตรวจแก้ได้ทันที</p>\n      </div>',
+    '        </h1>\n        <p class="hero-support">อัปโหลด PDF รูปภาพ Word Excel PowerPoint และไฟล์เอกสาร แล้วเปิดแก้ไขโครงสร้าง ตาราง และเลย์เอาต์ต่อได้ใน Document Studio</p>\n      </div>',
   );
 }
 const scripts = [
@@ -61,6 +62,7 @@ const scripts = [
   '/cover-recovery-ui.js',
   '/performance-v22-ui.js',
   '/table-auto-ui.js',
+  '/document-studio.js',
 ];
 for (const script of scripts) {
   if (!indexHtml.includes(`src="${script}"`)) {
@@ -97,13 +99,14 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.3.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.0.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
   '/cover-recovery.css',
   '/performance-v22.css',
   '/table-auto.css',
+  '/document-studio.css',
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
   '/cover-recovery-core.mjs',
@@ -124,6 +127,10 @@ const assets = [
   '/performance-v22-ui.js',
   '/table-structure-core.mjs',
   '/table-auto-ui.js',
+  '/document-model.mjs',
+  '/office-import.mjs',
+  '/editor-export.mjs',
+  '/document-studio.js',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -132,4 +139,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with OCR Worker Queue v2.2, automatic cell-separated tables v2.3, compact page actions, Cover Image Hard Block, Broken Sara Am recovery, and reference-scale layout');
+console.log('RipScan static site built with Document Reconstruction Studio v3, Office import adapters, WYSIWYG page editor, PDF/JPG/PNG resize export, OCR Worker Queue, automatic cell-separated tables, Cover Image Hard Block, and Broken Sara Am recovery');
