@@ -1,5 +1,5 @@
 Redeploy RipScan 2.2.0
 Source commit: 1ffb6427b9bbdecc96f8a72911571cfa5fec1470
-Requested: 2026-07-12
-Attempt: 3
-Reason: publish OCR Worker Queue, progressive region retry, Cover Illustration Blocker, Broken Sara Am recovery, progress/cancel/watchdog, and PWA cache 2.2.0.
+Requested: 2026-07-13
+Attempt: 4
+Reason: manually redeploy current production build for verification and cache refresh.
