@@ -40,6 +40,7 @@ for (const [after, asset] of [
   ['/layout-cover.css', '/reference-scale.css'],
   ['/reference-scale.css', '/cover-recovery.css'],
   ['/cover-recovery.css', '/performance-v22.css'],
+  ['/performance-v22.css', '/table-auto.css'],
 ]) {
   if (!indexHtml.includes(`href="${asset}"`)) {
     indexHtml = indexHtml.replace(
@@ -59,6 +60,7 @@ const scripts = [
   '/cover-ocr-ui.js',
   '/cover-recovery-ui.js',
   '/performance-v22-ui.js',
+  '/table-auto-ui.js',
 ];
 for (const script of scripts) {
   if (!indexHtml.includes(`src="${script}"`)) {
@@ -95,12 +97,13 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.2.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v2.3.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
   '/cover-recovery.css',
   '/performance-v22.css',
+  '/table-auto.css',
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
   '/cover-recovery-core.mjs',
@@ -119,6 +122,8 @@ const assets = [
   '/ocr-performance-core.mjs',
   '/ocr-preprocess-worker.js',
   '/performance-v22-ui.js',
+  '/table-structure-core.mjs',
+  '/table-auto-ui.js',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -127,4 +132,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with OCR Worker Queue v2.2, progressive region retry, Cover Image Hard Block, Broken Sara Am recovery, and reference-scale layout');
+console.log('RipScan static site built with OCR Worker Queue v2.2, automatic cell-separated tables v2.3, compact page actions, Cover Image Hard Block, Broken Sara Am recovery, and reference-scale layout');
