@@ -1,11 +1,10 @@
 import {
   buildCellMatrix,
-  matrixToMarkdown,
   pageActionPolicy,
   tableEvidence,
 } from './table-structure-core.mjs';
 
-const TABLE_AUTO_VERSION = '2.3.0';
+const TABLE_AUTO_VERSION = '3.1.0';
 const results = document.querySelector('#results');
 const scheduledPages = new WeakSet();
 const structuredTables = new WeakSet();
@@ -211,25 +210,30 @@ function recordsFromHtmlTable(table) {
   return records;
 }
 
-function applyStructuredTable(pageCard, table, force = false) {
-  const textarea = pageCard.querySelector('textarea.page-text');
-  if (!textarea || (!force && textarea.dataset.userEdited === 'true')) return;
-  const model = buildCellMatrix(recordsFromHtmlTable(table));
+function publishStructuredTable(pageCard, table) {
+  const records = recordsFromHtmlTable(table);
+  const model = buildCellMatrix(records);
   if (model.rows < 2 || model.columns < 2) return;
-  const markdown = matrixToMarkdown(model.matrix);
-  if (!markdown || textarea.value === markdown) return;
-  textarea.value = markdown;
-  textarea.dataset.tableStructured = 'true';
-  textarea.dispatchEvent(new Event('input', { bubbles: true }));
   pageCard.dataset.tableRows = String(model.rows);
   pageCard.dataset.tableColumns = String(model.columns);
   pageCard.dataset.tableCellSeparated = 'true';
+  pageCard.dataset.tableOutputMode = 'structured-event';
+  pageCard.dispatchEvent(new CustomEvent('ripscan:structured-table-ready', {
+    bubbles: true,
+    detail: {
+      records,
+      rows: model.rows,
+      columns: model.columns,
+      spans: model.spans,
+      output: 'editable-table',
+    },
+  }));
 
   const heading = pageCard.querySelector('.page-head > div:first-child');
   if (heading && !heading.querySelector('.auto-table-badge')) {
     const badge = document.createElement('span');
     badge.className = 'auto-table-badge';
-    badge.textContent = `ตาราง ${model.rows}×${model.columns} · แยกแต่ละช่องแล้ว`;
+    badge.textContent = `ตาราง ${model.rows}×${model.columns} · พร้อมเปิดแก้ไข`;
     heading.append(badge);
   }
 }
@@ -237,11 +241,11 @@ function applyStructuredTable(pageCard, table, force = false) {
 function bindTableEditing(pageCard, table) {
   if (structuredTables.has(table)) return;
   structuredTables.add(table);
-  applyStructuredTable(pageCard, table);
+  publishStructuredTable(pageCard, table);
   let timer;
   table.addEventListener('input', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => applyStructuredTable(pageCard, table, true), 180);
+    timer = setTimeout(() => publishStructuredTable(pageCard, table), 180);
   });
 }
 
