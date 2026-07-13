@@ -1,0 +1,44 @@
+{
+  "fixture": "government-table-page2",
+  "source": "user-provided regression screenshot",
+  "image": {
+    "width": 437,
+    "height": 558,
+    "pageNumber": 2,
+    "pageLabel": "2/3"
+  },
+  "horizontalLines": [51, 88, 233, 347, 379, 412, 461],
+  "verticalLines": [46, 94, 267, 305, 360, 419],
+  "horizontalSegments": [
+    { "position": 51, "start": 46, "end": 419 },
+    { "position": 88, "start": 46, "end": 419 },
+    { "position": 233, "start": 94, "end": 305 },
+    { "position": 347, "start": 46, "end": 305 },
+    { "position": 379, "start": 46, "end": 305 },
+    { "position": 412, "start": 46, "end": 419 },
+    { "position": 461, "start": 46, "end": 419 }
+  ],
+  "verticalSegments": [
+    { "position": 46, "start": 51, "end": 461 },
+    { "position": 94, "start": 51, "end": 461 },
+    { "position": 267, "start": 51, "end": 461 },
+    { "position": 305, "start": 51, "end": 461 },
+    { "position": 360, "start": 51, "end": 461 },
+    { "position": 419, "start": 51, "end": 461 }
+  ],
+  "expected": {
+    "columns": 5,
+    "rows": 6,
+    "headers": [
+      "หน่วยรับตรวจ",
+      "การจัดเตรียมเอกสารและข้อมูลประกอบการตรวจราชการ",
+      "เอกสารแนบ",
+      "การดำเนินการ",
+      "ติดต่อ"
+    ],
+    "mergedCells": true,
+    "multiLineCells": true,
+    "footerNote": true,
+    "footerEmail": "Secretary.inspector1@rd.go.th"
+  }
+}
