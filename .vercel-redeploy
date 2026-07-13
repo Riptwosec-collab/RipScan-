@@ -1,5 +1,5 @@
 Redeploy RipScan 3.0.0
 Source commit: e7b9d1f8cb02c5351708f6b47312e1fb7c5ec49d
 Requested: 2026-07-13
-Attempt: 1
-Reason: publish Document Reconstruction Studio, Office import adapters, WYSIWYG layout editor, Convert Center, PDF/JPG/PNG resize export, DOCX/XLSX export, and PWA cache 3.0.0.
+Attempt: 2
+Reason: deploy the fixed Document Reconstruction Studio build after resolving IndexedDB, RTF whitespace, and build-string regression tests.
