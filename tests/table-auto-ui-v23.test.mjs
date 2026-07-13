@@ -4,18 +4,22 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('automatic table UI detects grids and triggers existing cell OCR in background', async () => {
+test('automatic table UI detects grids and publishes structured cells without pipe markdown', async () => {
   const ui = await read('web/table-auto-ui.js');
   for (const required of [
     'imageGridEvidence',
     'tableEvidence',
     'waitForAnalyzeButton',
-    "button.click()",
+    'button.click()',
     'waitForAnalysisTable',
     'buildCellMatrix',
-    'matrixToMarkdown',
+    'publishStructuredTable',
+    'ripscan:structured-table-ready',
+    "output: 'editable-table'",
     'tableCellSeparated',
   ]) assert.ok(ui.includes(required), `missing ${required}`);
+  assert.ok(!ui.includes('matrixToMarkdown'));
+  assert.ok(!ui.includes('textarea.value = markdown'));
 });
 
 test('technical page buttons are removed while copy and TXT remain untouched', async () => {
