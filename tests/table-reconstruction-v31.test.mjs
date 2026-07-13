@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   TABLE_RECONSTRUCTION_VERSION,
   CELL_OCR_VARIANTS,
@@ -12,29 +13,25 @@ import {
   workerConcurrency,
 } from '../web/table-reconstruction-core.mjs';
 
-const PAGE = { width: 437, height: 558, pageNumber: 2 };
-const horizontalLines = [51, 88, 233, 347, 379, 412, 461];
-const verticalLines = [46, 94, 267, 305, 360, 419];
-const horizontalSegments = [
-  { position: 51, start: 46, end: 419 },
-  { position: 88, start: 46, end: 419 },
-  { position: 233, start: 94, end: 305 },
-  { position: 347, start: 46, end: 305 },
-  { position: 379, start: 46, end: 305 },
-  { position: 412, start: 46, end: 419 },
-  { position: 461, start: 46, end: 419 },
-];
-const verticalSegments = verticalLines.map(position => ({ position, start: 51, end: 461 }));
+const fixtureData = JSON.parse(await readFile(new URL('./fixtures/government-table-page2.json', import.meta.url), 'utf8'));
 
 function fixture() {
-  return buildTableStructure({ ...PAGE, horizontalLines, verticalLines, horizontalSegments, verticalSegments });
+  return buildTableStructure({
+    pageNumber: fixtureData.image.pageNumber,
+    width: fixtureData.image.width,
+    height: fixtureData.image.height,
+    horizontalLines: fixtureData.horizontalLines,
+    verticalLines: fixtureData.verticalLines,
+    horizontalSegments: fixtureData.horizontalSegments,
+    verticalSegments: fixtureData.verticalSegments,
+  });
 }
 
 test('actual government-table geometry reconstructs five editable columns before OCR', () => {
   const table = fixture();
   assert.equal(TABLE_RECONSTRUCTION_VERSION, '3.1.0');
-  assert.equal(table.columnCount, 5);
-  assert.equal(table.rowCount, 6);
+  assert.equal(table.columnCount, fixtureData.expected.columns);
+  assert.equal(table.rowCount, fixtureData.expected.rows);
   assert.deepEqual(table.columnWidths, [48, 173, 38, 55, 59]);
   assert.ok(table.cells.some(cell => cell.rowSpan > 1), 'expected merged vertical cells');
   assert.ok(table.cells.some(cell => cell.rowIndex === 1 && cell.columnIndex === 3 && cell.rowSpan === 4));
@@ -55,7 +52,7 @@ test('multiline text remains in one cell and exports as a real table cell model'
   assert.equal(exported.text.split('\n').length, 3);
   assert.equal(exported.row, 1);
   assert.equal(exported.column, 1);
-  assert.equal(block.columns, 5);
+  assert.equal(block.columns, fixtureData.expected.columns);
   assert.equal(block.metadata.tableFirst, true);
 });
 
@@ -72,7 +69,7 @@ test('gibberish and cross-script table line leakage never becomes verified text'
 
 test('strict contact and attachment validation preserves punctuation and leading zeroes', () => {
   assert.deepEqual(strictFieldAssessment('094-359-3926', 'contact').type, 'phone');
-  assert.deepEqual(strictFieldAssessment('Secretary.inspector1@rd.go.th', 'contact').type, 'email');
+  assert.deepEqual(strictFieldAssessment(fixtureData.expected.footerEmail, 'contact').type, 'email');
   assert.deepEqual(strictFieldAssessment('แบบ 12', 'attachment_code').type, 'attachment_code');
   assert.equal(strictFieldAssessment('แบบ 123456', 'attachment_code').valid, false);
 });
