@@ -1,4 +1,4 @@
-const VERSION = 'ripscan-pwa-v1.8.0';
+const VERSION = 'ripscan-pwa-v2.3.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -11,6 +11,7 @@ const APP_SHELL = [
   '/redesign.css',
   '/compact-home.css',
   '/book-ocr.css',
+  '/table-auto.css',
   '/app.js',
   '/upgrade.js',
   '/advanced.js',
@@ -23,6 +24,8 @@ const APP_SHELL = [
   '/book-ocr-rules.mjs',
   '/book-ocr-browser.mjs',
   '/book-ocr-ui.js',
+  '/table-structure-core.mjs',
+  '/table-auto-ui.js',
   '/theme-ui.js',
   '/manifest.webmanifest',
   '/icon-192.svg',
