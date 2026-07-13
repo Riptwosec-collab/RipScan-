@@ -19,7 +19,7 @@ test('Document Studio exposes visual and structured editable views', async () =>
     'splitTableCell',
     'undo()',
     'redo()',
-    'IndexedDB',
+    'indexedDB.open',
   ]) assert.ok(source.includes(required), `missing ${required}`);
 });
 
