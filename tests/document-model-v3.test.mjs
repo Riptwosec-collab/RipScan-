@@ -63,14 +63,14 @@ test('merge and split cells preserve the anchor text without leaking into neighb
   });
   const result = mergeTableCells(table, [{ row: 0, column: 0 }, { row: 1, column: 0 }]);
   assert.equal(result.merged, true);
-  assert.equal(result.anchor.rowSpan, 2);
-  assert.match(result.anchor.text, /หน่วย/);
-  assert.match(result.anchor.text, /การเงิน/);
+  assert.equal(getTableCell(table, 0, 0).rowSpan, 2);
+  assert.match(getTableCell(table, 0, 0).text, /หน่วย/);
+  assert.match(getTableCell(table, 0, 0).text, /การเงิน/);
   assert.equal(getTableCell(table, 0, 1).text, 'การดำเนินการ');
   assert.equal(getTableCell(table, 1, 2).text, '094-359-3926');
   const split = splitTableCell(table, result.anchor.id);
   assert.equal(split.split, true);
-  assert.equal(result.anchor.rowSpan, 1);
+  assert.equal(getTableCell(table, 0, 0).rowSpan, 1);
   assert.ok(getTableCell(table, 1, 0));
 });
 
