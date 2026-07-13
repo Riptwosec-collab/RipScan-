@@ -1,6 +1,6 @@
-# RipScan — Thai-English OCR
+# RipScan — OCR + Document Reconstruction Studio
 
-เว็บแปลงภาพและ PDF เป็นข้อความภาษาไทย–อังกฤษ พร้อมตรวจแก้ผลลัพธ์ แยกหน้า ตาราง แบบฟอร์ม หน้าปก และข้อความไทยอ่านยาก โดยประมวลผลภายใน Browser เป็นหลัก
+RipScan เป็นเว็บแอป OCR ภาษาไทย–อังกฤษที่เพิ่ม **Document Reconstruction Studio** สำหรับนำเข้าไฟล์เอกสาร แปลงเป็นโครงสร้างที่แก้ไขต่อได้ และส่งออกเป็น PDF/JPG/PNG/DOCX/XLSX โดยประมวลผลใน Browser เป็นหลัก
 
 ## ใช้งานออนไลน์
 
@@ -8,26 +8,161 @@
 https://rip-scan.vercel.app
 ```
 
-ไฟล์ไม่ถูกอัปโหลดไปเก็บบนเซิร์ฟเวอร์ในโหมด Browser OCR
+ไฟล์ OCR และไฟล์ Office จะถูกประมวลผลใน Browser ในโหมดปกติ ไม่ถูกอัปโหลดไปเก็บบนเซิร์ฟเวอร์
 
-## ความสามารถหลัก
+## RipScan 3.0
 
-- PNG, JPG, WEBP, TIFF, BMP และ PDF
+### นำเข้า
+
+- PDF และ PDF สแกน
+- JPG / JPEG / PNG / WEBP / BMP / TIFF
+- DOCX
+- XLSX / XLS
+- PPTX
+- TXT / CSV / HTML / RTF / JSON
+- ODT / ODS / ODP ระดับโครงสร้างพื้นฐาน
+
+### OCR
+
 - ภาษาไทย ภาษาอังกฤษ และไทย–อังกฤษผสม
 - PDF Text Layer และ PDF สแกนสูงสุด 100 หน้า
 - Drag & Drop, หลายไฟล์ และวางภาพด้วย `Ctrl+V` / `Cmd+V`
-- ปรับภาพเอียง Contrast Threshold และขยายภาพอัตโนมัติ
-- ตรวจภาพคู่ข้อความ พร้อม Zoom หมุน ค้นหา Undo/Redo
-- Thumbnail แยกหน้า ลากจัดลำดับ หมุน ลบ Crop และ OCR ใหม่
-- ตรวจตารางแยก Cell, Numeric Strict และ Cross-Cell Contamination
-- ส่งออก TXT, Markdown, HTML, CSV, JSON, DOCX, XLSX และ PDF
-- PWA ติดตั้งเป็นแอปและเตรียมใช้งานออฟไลน์
+- Deskew, Contrast, Threshold, Upscale และ Background Cleanup
+- Worker Queue, Progress, Cancel, Timeout และ Retry เฉพาะ Region
+- Cover Image Hard Block ไม่อ่านข้อความจากรูปประกอบบนหน้าปก
+- Broken Sara Am Recovery สำหรับ `บทร าพัน`, `การน าเสนอ`, `ส านักงาน`
+- ตรวจตารางแยก Cell พร้อม Merged Cell และ Cross-Cell Validation
 
-## RipScan 2.0 — Review-first OCR
+### Document Studio
 
-เวอร์ชัน 2.0 เปลี่ยนหลักการจาก **Reject เมื่อไม่มั่นใจ** เป็น **เก็บไว้ให้ตรวจ**
+ผลลัพธ์ไม่จบแค่ Plain Text แต่เปิดเป็น WYSIWYG Document Model ได้:
 
-สถานะ Region:
+- Visual Page View
+- Structured Blocks View
+- แก้ Text Block โดยตรง
+- ลากย้ายและ Resize Block
+- Position / Size / Rotation / z-index
+- Font size / weight / color / alignment
+- เพิ่มข้อความ รูป ตาราง เส้น และหน้าใหม่
+- ตารางเป็น Cell จริง
+- เพิ่ม/ลบ Row และ Column
+- Merge / Split Cell
+- แก้ Cell, Border, Fill และ Alignment
+- Multi-page navigation
+- Undo / Redo สูงสุด 50 snapshots
+- Save/Load ใน IndexedDB
+- เปิด OCR Result เดิมเข้า Editor ด้วยปุ่ม **เปิดแก้ไขแบบต้นฉบับ**
+
+### Convert Center
+
+ส่งออกและแปลงไฟล์เป็น:
+
+- PDF แบบ Render
+- Searchable PDF ผ่าน Browser Print
+- JPG
+- PNG
+- DOCX
+- XLSX
+- TXT
+- JSON Structured Document Model
+
+ตัวเลือก Resize:
+
+- Width / Height
+- Keep aspect ratio
+- Fit contain / cover
+- Scale 10–800%
+- DPI 72–600
+- JPG quality
+- Background color
+- Transparent PNG
+- A4 / A5 / Letter / Legal / Source / Custom
+- Portrait / Landscape
+- Export เฉพาะหน้าที่เลือก
+
+## Document Model
+
+```js
+{
+  version: '3.0.0',
+  id,
+  name,
+  sourceType,
+  metadata,
+  pages: [{
+    id,
+    number,
+    width,
+    height,
+    background,
+    backgroundImage,
+    blocks: [{
+      id,
+      type: 'text | table | image | shape | line | field | header | footer',
+      x, y, width, height,
+      zIndex,
+      rotation,
+      style,
+      content,
+      confidence,
+      reviewStatus,
+      metadata
+    }]
+  }],
+  reviewIssues: []
+}
+```
+
+### Table Model
+
+- `rows`, `columns`
+- `cells[]`
+- `rowSpan`, `columnSpan`
+- `columnWidths`, `rowHeights`
+- Cell styles, border, fill, alignment และ review status
+
+## วิธี Import
+
+### DOCX
+
+อ่าน OOXML โดยตรงจาก ZIP:
+
+- Paragraph / Run / Heading
+- Bold / Italic / Underline / Color / Font Size
+- Paragraph alignment
+- Table / Grid Span / Vertical Merge
+- Embedded image relationship
+- Page size และ margin พื้นฐาน
+
+### XLSX / XLS
+
+ใช้ SheetJS:
+
+- Sheet → Page
+- Cell → Editable Cell
+- Merged Cell
+- Column width / Row height
+- Font / Fill / Alignment / Border ที่ Parser คืนมาได้
+
+### PPTX
+
+อ่าน Slide XML:
+
+- Slide → Page
+- Text Shape → Positioned Text Block
+- Picture → Positioned Image Block
+- Connector → Line Block
+- ตำแหน่งและขนาดจาก EMU
+
+### PDF / Image
+
+- PDF Text Layer ถูกสร้างเป็น Positioned Text Blocks
+- หน้า PDF และรูปถูกเก็บเป็น Page Background เพื่อรักษาหน้าตาเดิม
+- PDF สแกนและรูปเอกสารใช้ OCR Pipeline เดิม แล้วเปิดเข้า Document Studio
+
+## Review-first OCR
+
+Region ใช้สถานะ:
 
 - `verified`
 - `review_required`
@@ -35,7 +170,7 @@ https://rip-scan.vercel.app
 - `likely_non_text`
 - `confirmed_non_text`
 
-เฉพาะ `confirmed_non_text` เท่านั้นที่ถูกตัดจาก Structured Text และ Export
+เฉพาะ `confirmed_non_text` เท่านั้นที่ถูกตัดจาก Output
 
 ค่าเริ่มต้น:
 
@@ -47,214 +182,82 @@ decorative_font_possible_threshold = 0.30
 small_text_possible_threshold = 0.25
 ```
 
-Text Evidence ใช้หลายเงื่อนไขร่วมกัน โดยไม่บังคับให้ผ่านทุกข้อพร้อมกัน:
+## Cover OCR Safety
 
-- Baseline
-- Glyph Pattern
-- Connected Components แนวนอน
-- OCR Candidate
-- Thai Script Candidate
-- Character Height Consistency
-- Spacing Consistency
-- Expected Text Position
-- Foreground Contrast
-- Line-like Bounding Box
-
-## Cover / Poster OCR Recovery
-
-Document Mode:
+Cover Mode รองรับ:
 
 - `cover_page`
 - `worksheet_cover`
 - `book_cover`
 - `poster`
-- `certificate_cover`
-- `infographic`
 - `illustrated_document`
-- `normal_document`
 
-Cover Zone:
+Region ประเภท Illustration, Character, Animal, Ship, Logo, Emblem, Ornament และ Decorative Frame จะไม่ถูกส่งเข้า Text OCR และ Token จะไม่รั่วเข้า Editor/Export
 
-1. `top_illustration`
-2. `main_title`
-3. `subtitle`
-4. `class_level`
-5. `author_name`
-6. `school_name`
-7. `organization_name`
-8. `footer_text`
+## Broken Sara Am
 
-หากหน้าปกพบ Text Block น้อยกว่า 3 หรือไม่พบหัวข้อ/ข้อมูลโรงเรียน ระบบจะทำ Recovery Scan เพิ่มเติม
-
-Recovery Variant:
-
-- Original
-- Padded Crop
-- Upscale 4x
-- Upscale 6x
-- Color Isolation
-- Grayscale
-- CLAHE-like Contrast
-- Background Removal
-- Edge-preserving Sharpen
-- Soft Binary Mask
-
-ข้อความสีทอง สีขาว ฟอนต์หนา ฟอนต์ประดิษฐ์ และข้อความเล็กด้านล่างจะถูกเก็บเป็น `possible_text` หรือ `review_required` แทนการลบทิ้งทันที
-
-## Non-Text Safety
-
-ระบบจะยืนยัน `confirmed_non_text` เมื่อ:
-
-- ไม่มี Baseline
-- ไม่มี Glyph Pattern
-- ไม่มี OCR Candidate
-- มีหลักฐานรูป/ลวดลายชัดเจน
-- ตัวตรวจ Non-Text หลายรอบตรงกัน
-- หรือผู้ใช้กด **เป็นรูป ไม่ใช่ข้อความ**
-
-Region ที่ยังไม่แน่ใจจะเป็น `likely_non_text` และเข้าสู่ Secondary Detection
-
-Barcode และ QR Code ถูกส่งไป Barcode Reader ไม่เข้าสู่ Text OCR
-
-## Overlay และ Manual Review
-
-Document Viewer แสดงกรอบ:
-
-- เขียว: `verified`
-- เหลือง: `review_required`
-- ส้ม: `possible_text`
-- เทา: `likely_non_text`
-- ไม่แสดง `confirmed_non_text`
-
-Toggle:
-
-- แสดงข้อความทั้งหมด
-- เฉพาะข้อความยืนยันแล้ว
-- พื้นที่ที่ควรตรวจ
-- Non-Text ที่ยังไม่ยืนยัน
-
-ผู้ใช้สามารถ:
-
-- ลากกรอบข้อความเอง
-- เลือกภาษา
-- ระบุหัวข้อ ชื่อบุคคล ชื่อโรงเรียน หน่วยงาน หรือชั้นเรียน
-- OCR พื้นที่ที่ลากทันที
-- อ่านใหม่เฉพาะ Block
-- แก้ข้อความ
-- ยืนยัน Block
-- ระบุว่าเป็นรูป ไม่ใช่ข้อความ
-
-## Broken Sara Am — สระอำแยกเป็นช่องว่าง
-
-ตรวจรูปแบบ เช่น:
+ตรวจรูปแบบ:
 
 ```text
+บทร าพัน
 การน าเสนอ
 การด าเนินงาน
 จ านวน
 ส านักงาน
 ค าแนะน า
-ช านาญ
 ส าคัญ
 ก าหนด
 ต าแหน่ง
 ส าเร็จ
-อ าเภอ
-ส าหรับ
-ล าดับ
 ```
 
-ระบบทำงานตามลำดับ:
+ระบบใช้ Unicode, Grapheme, Internal Spacing, OCR Variant, Image Evidence และ Dictionary เป็นคะแนนเสริม ชื่อเฉพาะจะไม่ถูกแก้อัตโนมัติเมื่อหลักฐานไม่ครบ
 
-1. เก็บ Raw OCR
-2. Unicode Normalize
-3. ตรวจ Zero-width Character
-4. ตรวจ Broken Grapheme
-5. ตรวจ Broken Sara Am
-6. ตรวจ Internal Whitespace
-7. ตรวจ Thai Syllable
-8. สร้าง Candidate
-9. ตรวจ Image Evidence
-10. Auto-fix หรือส่ง Manual Review
-
-Auto-fix ทำได้เมื่อ:
-
-- OCR อย่างน้อย 2 Variant เห็น `ำ`
-- Image Evidence ≥ 0.98
-- Bounding Box สนับสนุน
-- Thai Grapheme/Syllable ถูกต้อง
-- Provider Agreement ผ่าน
-- Confidence ≥ 0.98
-- ไม่ใช่ชื่อเฉพาะ
-
-คำจริง เช่น `นา`, `ดา`, `ลา`, `อา`, `ตา` จะไม่ถูกเปลี่ยนเป็นสระอำอัตโนมัติ
-
-Crop สำหรับคำที่สงสัยใช้ Padding:
+## Architecture
 
 ```text
-top = 30%
-bottom = 15%
-left/right = 15%
+Upload / OCR Result
+        │
+        ▼
+Import Adapter Layer
+PDF · Image · DOCX · XLSX · PPTX · HTML · CSV · TXT · RTF · ODF
+        │
+        ▼
+Structured Document Model
+        │
+        ▼
+WYSIWYG Page Editor + Review
+        │
+        ▼
+PDF · Searchable PDF · JPG · PNG · DOCX · XLSX · TXT · JSON
 ```
 
-เพื่อไม่ให้จุดนิคหิตด้านบนถูกตัด
-
-## Export
-
-ข้อความที่ส่งออก:
-
-- รวม `verified`
-- เก็บ `review_required` พร้อม `[โปรดตรวจสอบ: ...]`
-- เก็บ `possible_text` พร้อม `[อาจเป็นข้อความ: ...]`
-- ไม่รวม `confirmed_non_text`
-- เมื่อผู้ใช้ยืนยันแล้ว ใช้ข้อความที่ยืนยันแทน Marker
-
-ยังคงรักษา:
+ไฟล์หลัก:
 
 ```text
-66-F4-007
-INC-2569-001
-RD-Wifi
-ชื่อ-นามสกุล
-หน้า 10–15
-ไทย–อังกฤษ
-08.30-16.30 น.
-LAN / WAN
-A_B_C
---------------------
+web/document-model.mjs
+web/office-import.mjs
+web/editor-export.mjs
+web/document-studio.js
+web/document-studio.css
 ```
-
-## ตารางและแบบฟอร์ม
-
-- ตรวจ Grid ก่อน OCR
-- OCR แยกทีละ Cell
-- รักษา Empty Cell และ Merged Cell Evidence
-- Numeric Strict Mode
-- ตรวจ Cross-Cell Contamination
-- ตรวจ Checkbox และฟิลด์แบบฟอร์ม
-- ส่งออก CSV, XLSX และ JSON
-- Verified Table Settings ทำงานอัตโนมัติหลังบ้าน
-
-## ล้างหน้าสแกน
-
-ปุ่ม **ล้างหน้าสแกน** จะ:
-
-- ยกเลิก OCR ที่กำลังทำงาน
-- Terminate Worker
-- ล้างหน้า OCR และ Review
-- ไม่ลบไฟล์ต้นทางที่เลือกไว้
-
-Retry ไม่มีการหักเครดิต เพราะเวอร์ชันนี้ยังไม่มีระบบเครดิต
 
 ## ทดสอบและ Build
 
 ```bash
+npm install
 npm test
 npm run check
 npm run build
 ```
 
-Build จะตรวจ Unit/Regression Tests, JavaScript Syntax และสร้าง Static output ที่ `dist/`
+Build จะ:
+
+1. รัน Unit/Regression Tests
+2. ตรวจ JavaScript Syntax
+3. สร้าง Static output ที่ `dist/`
+4. Inject OCR, Table Automation และ Document Studio
+5. อัปเดต PWA Cache
 
 ## รัน Local
 
@@ -269,12 +272,25 @@ uvicorn api.index:app --host 0.0.0.0 --port 8000
 
 เปิด `http://localhost:8000`
 
-## รายงานการประเมิน
+## Known Limitations
 
-ดูรายละเอียด:
+RipScan พยายามรักษา Layout ให้ใกล้ต้นฉบับที่สุด แต่ไม่รับประกันความเหมือน 100% สำหรับทุกไฟล์
 
+ข้อจำกัดหลัก:
+
+- WordArt, SmartArt, Chart, Macro, OLE และเอฟเฟกต์ 3D อาจไม่ถูกนำเข้าครบ
+- ฟอนต์ที่ไม่มีในเครื่องผู้ใช้จะถูกแทนด้วย System/Noto Sans Thai fallback
+- Searchable PDF ใช้ Browser Print ผู้ใช้ต้องเลือก Save as PDF
+- Direct PDF Export เน้น Visual Fidelity และเป็นภาพ Render
+- DOCX Export เน้นข้อความและตาราง ไม่รักษา Absolute DrawingML ทุก Block
+- XLSX Export สร้าง Sheet จาก Table Blocks และรักษา Merge/ขนาดพื้นฐาน
+- PDF ภาพล้วนต้องผ่าน OCR ก่อนจึงมี Text Block ที่แก้ไขได้
+
+## เอกสารเพิ่มเติม
+
+- `docs/document-reconstruction-studio-v3.md`
 - `docs/review-first-cover-sara-am-v2.md`
 - `docs/cover-poster-ocr-evaluation-v1.9.md`
 - `docs/book-cover-thai-ocr-evaluation.md`
 
-> RipScan ไม่รับประกันความแม่น 100% ข้อความที่ภาพไม่ชัด ชื่อเฉพาะ และฟอนต์ประดิษฐ์จะถูกส่ง Manual Review แทนการเดา
+> ข้อความที่ภาพไม่ชัด ชื่อเฉพาะ ฟอนต์ประดิษฐ์ และโครงสร้างที่ขัดแย้งจะถูกส่ง Manual Review แทนการเดา
