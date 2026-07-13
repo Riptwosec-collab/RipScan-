@@ -1,0 +1,106 @@
+.page-actions[data-compact-actions="true"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.page-actions[data-compact-actions="true"] > button {
+  min-height: 40px;
+}
+
+.page-actions [data-automatic-only="true"],
+.page-actions [data-managed-page-action="download-image"],
+.page-actions [data-managed-page-action="rerun"],
+.page-actions [data-managed-page-action="rotate"],
+.page-actions [data-managed-page-action="crop"],
+.page-actions [data-verified-page="mixed"],
+.page-actions .cover-review-toggle {
+  display: none !important;
+}
+
+.auto-table-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border: 1px solid rgba(34, 211, 238, .42);
+  border-radius: 999px;
+  background: rgba(8, 145, 178, .12);
+  color: #a5f3fc;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.analysis-panel .table-scroll {
+  overflow: auto;
+  max-width: 100%;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 14px;
+  background: rgba(3, 7, 36, .64);
+}
+
+.analysis-panel .detected-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  background: rgba(255, 255, 255, .98);
+  color: #111827;
+}
+
+.analysis-panel .detected-table tr:first-child td {
+  background: #dbeafe;
+  font-weight: 700;
+  text-align: center;
+}
+
+.analysis-panel .detected-table td {
+  min-width: 120px;
+  max-width: 520px;
+  padding: 10px 12px;
+  border: 1px solid #334155 !important;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.analysis-panel .detected-table td > span {
+  display: block;
+  min-height: 1.45em;
+}
+
+.analysis-panel .detected-table td > small {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.analysis-panel .detected-table td.low-confidence,
+.analysis-panel .detected-table td.review-cell {
+  background: #fffbeb;
+}
+
+.analysis-panel .detected-table td.manual-cell {
+  background: #fef2f2;
+}
+
+@media (max-width: 720px) {
+  .page-actions[data-compact-actions="true"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .page-actions[data-compact-actions="true"] > button {
+    width: 100%;
+  }
+
+  .analysis-panel .detected-table td {
+    min-width: 105px;
+    padding: 8px 9px;
+  }
+}

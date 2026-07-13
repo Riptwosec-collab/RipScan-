@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('automatic table UI detects grids and triggers existing cell OCR in background', async () => {
+  const ui = await read('web/table-auto-ui.js');
+  for (const required of [
+    'imageGridEvidence',
+    'tableEvidence',
+    'waitForAnalyzeButton',
+    "button.click()",
+    'waitForAnalysisTable',
+    'buildCellMatrix',
+    'matrixToMarkdown',
+    'tableCellSeparated',
+  ]) assert.ok(ui.includes(required), `missing ${required}`);
+});
+
+test('technical page buttons are removed while copy and TXT remain untouched', async () => {
+  const ui = await read('web/table-auto-ui.js');
+  for (const label of [
+    'รูปภาพ',
+    'OCR ใหม่',
+    'หมุนหน้า',
+    'ครอป',
+    'ตาราง/ฟอร์ม',
+    'ตรวจไทย–อังกฤษ',
+    'ตรวจข้อความจากหน้าปก',
+  ]) assert.ok(ui.includes(`'${label}'`), `missing hidden label ${label}`);
+  assert.ok(!ui.includes("TECHNICAL_LABELS.add('คัดลอกหน้านี้')"));
+  assert.ok(!ui.includes("TECHNICAL_LABELS.add('ดาวน์โหลด TXT')"));
+});
+
+test('table stylesheet renders clear borders and responsive cells', async () => {
+  const css = await read('web/table-auto.css');
+  for (const required of [
+    'border-collapse: collapse',
+    'border: 1px solid #334155',
+    'white-space: pre-wrap',
+    'overflow-wrap: anywhere',
+    '.auto-table-badge',
+    '@media (max-width: 720px)',
+  ]) assert.ok(css.includes(required), `missing ${required}`);
+});

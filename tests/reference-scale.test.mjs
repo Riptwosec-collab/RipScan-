@@ -13,10 +13,12 @@ test('desktop landing scale matches the approved compact reference', async () =>
   assert.match(css, /width:\s*min\(100%,\s*760px\)/);
 });
 
-test('reference scale and performance UI are injected and cached', async () => {
+test('reference scale performance UI and automatic tables are injected and cached', async () => {
   const build = await read('build.mjs');
   assert.ok(build.includes('/reference-scale.css'));
   assert.ok(build.includes('/performance-v22.css'));
-  assert.ok(build.includes('ripscan-pwa-v2.2.0'));
+  assert.ok(build.includes('/table-auto.css'));
+  assert.ok(build.includes('/table-auto-ui.js'));
+  assert.ok(build.includes('ripscan-pwa-v2.3.0'));
   assert.ok(build.includes('reference-scale layout'));
 });

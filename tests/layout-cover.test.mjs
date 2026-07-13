@@ -4,19 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production build injects balanced layout cover review hero and worker progress', async () => {
+test('production build injects balanced layout cover review worker progress and automatic table UI', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/layout-cover.css',
     '/reference-scale.css',
     '/cover-recovery.css',
     '/performance-v22.css',
+    '/table-auto.css',
     '/cover-ocr-ui.js',
     '/cover-recovery-ui.js',
     '/performance-v22-ui.js',
+    '/table-auto-ui.js',
     '/book-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v2.2.0',
+    'ripscan-pwa-v2.3.0',
     'cover-ocr-core.mjs',
     'cover-recovery-core.mjs',
     'cover-hard-block.mjs',
@@ -24,6 +26,7 @@ test('production build injects balanced layout cover review hero and worker prog
     'sara-am-recovery-v21.mjs',
     'ocr-performance-core.mjs',
     'ocr-preprocess-worker.js',
+    'table-structure-core.mjs',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 
@@ -37,7 +40,7 @@ test('balanced layout expands workspace and prevents overflow', async () => {
   assert.ok(css.includes('@media (max-width: 560px)'));
 });
 
-test('cover review UI exposes manual region drawing and non-text marking', async () => {
+test('cover review UI still supports manual recovery although its page toolbar button is hidden', async () => {
   const js = await read('web/cover-ocr-ui.js');
   for (const required of [
     'ตรวจข้อความจากหน้าปก',
@@ -49,6 +52,9 @@ test('cover review UI exposes manual region drawing and non-text marking', async
     'pointerdown',
     'pointerup',
   ]) assert.ok(js.includes(required), `missing ${required}`);
+  const compact = await read('web/table-auto-ui.js');
+  assert.ok(compact.includes("'ตรวจข้อความจากหน้าปก'"));
+  assert.ok(compact.includes("'cover-review'"));
 });
 
 test('cover review CSS keeps controls readable and responsive', async () => {
