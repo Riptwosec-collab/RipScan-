@@ -21,6 +21,8 @@ test('reference scale performance table and Document Studio assets are injected 
   assert.ok(build.includes('/table-auto-ui.js'));
   assert.ok(build.includes('/document-studio.css'));
   assert.ok(build.includes('/document-studio.js'));
-  assert.ok(build.includes('ripscan-pwa-v3.0.0'));
-  assert.ok(build.includes('Document Reconstruction Studio v3'));
+  assert.ok(build.includes('/table-review-v31.css'));
+  assert.ok(build.includes('/table-review-v31.js'));
+  assert.ok(build.includes('ripscan-pwa-v3.1.0'));
+  assert.ok(build.includes('Table-first Reconstruction v3.1'));
 });
