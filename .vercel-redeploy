@@ -1,5 +1,5 @@
 Redeploy RipScan 3.1.0
 Source commit: 34c0f0754f780971dc576f71c5f6787b2aec650a
-Requested: 2026-07-13
-Attempt: 2
-Reason: redeploy the final Table-first OCR build after all 164 tests passed and the obsolete pipe-Markdown regression was removed.
+Requested: 2026-07-16
+Attempt: 3
+Reason: publish the fixed Table-first OCR build; the obsolete matrixToMarkdown assertion was removed and replaced by structured editable-table event checks.
