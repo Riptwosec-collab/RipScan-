@@ -22,7 +22,7 @@ test('reference scale performance table and Document Studio assets are injected 
   assert.ok(build.includes('/document-studio.css'));
   assert.ok(build.includes('/document-studio.js'));
   assert.ok(build.includes('/table-review-v31.css'));
-  assert.ok(build.includes('/table-review-v31.js'));
-  assert.ok(build.includes('ripscan-pwa-v3.1.0'));
-  assert.ok(build.includes('Table-first Reconstruction v3.1'));
+  assert.ok(build.includes('/table-review-v312.js'));
+  assert.ok(build.includes('ripscan-pwa-v3.1.2'));
+  assert.ok(build.includes('Table-first Reconstruction v3.1.2'));
 });
