@@ -17,8 +17,8 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Document Model v4 retains source format dual representation and editable block provenance', () => {
   assert.equal(DOCUMENT_MODEL_VERSION, '4.0.0');
   const model = createDocument({ name: 'report.docx', sourceType: 'docx' });
-  const page = createPage({ number: 1, backgroundImage: 'data:image/png;base64,AA==' });
-  page.blocks.push(createTextBlock({ text: 'แก้ไขต่อได้', source: 'docx_paragraph' }));
+  const textBlock = createTextBlock({ text: 'แก้ไขต่อได้', source: 'docx_paragraph' });
+  const page = createPage({ number: 1, backgroundImage: 'data:image/png;base64,AA==', blocks: [textBlock] });
   model.pages.push(page);
   const enriched = attachSourceMetadata(model, { name: 'report.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   assert.equal(enriched.metadata.sourceFormat, 'docx');
@@ -29,6 +29,7 @@ test('Document Model v4 retains source format dual representation and editable b
   assert.equal(enriched.pages[0].blocks[0].metadata.originalText, 'แก้ไขต่อได้');
   const normalized = normalizeDocumentModel(enriched);
   assert.equal(normalized.pages[0].editableLayer.blockIds.length, 1);
+  assert.equal(normalized.pages[0].editableLayer.blockIds[0], normalized.pages[0].blocks[0].id);
 });
 
 test('round-trip report counts native editable text tables and images without 100 percent claims', () => {
@@ -48,20 +49,9 @@ test('round-trip report counts native editable text tables and images without 10
 test('round-trip source implements native DOCX PPTX XLSX PDF and RipScan adapters', async () => {
   const source = await read('web/roundtrip-export.mjs');
   for (const required of [
-    'modelToRoundTripDocx',
-    '<w:tbl>',
-    '<w:drawing>',
-    '<w:rPr>',
-    'modelToXlsxBlob',
-    'modelToRoundTripPptx',
-    '<p:sp>',
-    '<p:pic>',
-    '<a:tbl>',
-    'exportEditablePdf',
-    'modelToRipscanBlob',
-    'exportOriginalFormat',
-    "format === 'docx'",
-    "format === 'pdf'",
+    'modelToRoundTripDocx', '<w:tbl>', '<w:drawing>', '<w:rPr>', 'modelToXlsxBlob',
+    'modelToRoundTripPptx', '<p:sp>', '<p:pic>', '<a:tbl>', 'exportEditablePdf',
+    'modelToRipscanBlob', 'exportOriginalFormat', "format === 'docx'", "format === 'pdf'",
   ]) assert.ok(source.includes(required), `missing round-trip adapter ${required}`);
   assert.ok(!source.includes('flatten entire document'));
 });
@@ -69,13 +59,8 @@ test('round-trip source implements native DOCX PPTX XLSX PDF and RipScan adapter
 test('RipScan project package stores manifest document assets and thumbnails', async () => {
   const source = await read('web/ripscan-project.mjs');
   for (const required of [
-    "const MANIFEST_PATH = 'manifest.json'",
-    "const DOCUMENT_PATH = 'document.json'",
-    'assets/background-',
-    'assets/image-',
-    'thumbnails/page-',
-    'modelToRipscanBlob',
-    'ripscanBlobToModel',
-    "format: 'ripscan-project'",
+    "const MANIFEST_PATH = 'manifest.json'", "const DOCUMENT_PATH = 'document.json'",
+    'assets/background-', 'assets/image-', 'thumbnails/page-', 'modelToRipscanBlob',
+    'ripscanBlobToModel', "format: 'ripscan-project'",
   ]) assert.ok(source.includes(required), `missing project feature ${required}`);
 });
