@@ -64,7 +64,7 @@ const scripts = [
   '/performance-v22-ui.js',
   '/table-auto-ui.js',
   '/document-studio.js',
-  '/table-review-v31.js',
+  '/table-review-v312.js',
 ];
 for (const script of scripts) {
   if (!indexHtml.includes(`src="${script}"`)) {
@@ -101,7 +101,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.2');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -132,7 +132,7 @@ const assets = [
   '/table-auto-ui.js',
   '/table-reconstruction-core.mjs',
   '/table-reconstruction-worker.js',
-  '/table-review-v31.js',
+  '/table-review-v312.js',
   '/document-model.mjs',
   '/office-import.mjs',
   '/editor-export.mjs',
@@ -145,4 +145,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with Table-first Reconstruction v3.1, editable Cell Review, Manual Grid Correction, Document Reconstruction Studio v3, Office import adapters, WYSIWYG page editor, PDF/JPG/PNG resize export, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
+console.log('RipScan static site built with responsive Table-first Reconstruction v3.1.2, serialized Worker detection, lazy editable Cell Review, Document Reconstruction Studio v3, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
