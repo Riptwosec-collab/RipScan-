@@ -18,14 +18,16 @@ import {
   documentToPlainText,
 } from '../web/document-model.mjs';
 
-test('Document Model stores positioned editable blocks and validates', () => {
+test('Document Model stores positioned editable blocks source metadata and validates', () => {
   const documentModel = createDocument({ name: 'ตัวอย่าง', sourceType: 'docx' });
   const page = createPage({ number: 1, width: 794, height: 1123 });
   page.blocks.push(createTextBlock({ x: 40, y: 40, width: 400, height: 60, text: 'หัวข้อเอกสาร', role: 'heading', style: { fontSize: 28, fontWeight: 700 } }));
   page.blocks.push(createTableBlock({ rows: 2, columns: 2, x: 40, y: 120, width: 500, height: 100 }));
   documentModel.pages.push(page);
   const result = validateDocumentModel(documentModel);
-  assert.equal(DOCUMENT_MODEL_VERSION, '3.0.0');
+  assert.equal(DOCUMENT_MODEL_VERSION, '4.0.0');
+  assert.equal(documentModel.metadata.sourceFormat, 'docx');
+  assert.equal(documentModel.metadata.dualRepresentation, true);
   assert.equal(result.valid, true);
   assert.equal(page.blocks[0].x, 40);
   assert.equal(page.blocks[0].style.fontSize, 28);
