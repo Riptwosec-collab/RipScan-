@@ -1,4 +1,4 @@
-export const DOCUMENT_MODEL_VERSION = '3.0.0';
+export const DOCUMENT_MODEL_VERSION = '4.0.0';
 
 let sequence = 0;
 
@@ -37,7 +37,8 @@ export function defaultTextStyle(overrides = {}) {
   };
 }
 
-export function createDocument({ name = 'เอกสารใหม่', sourceType = 'unknown', metadata = {} } = {}) {
+export function createDocument({ name = 'เอกสารใหม่', sourceType = 'unknown', metadata = {}, assets = [], exportSettings = {} } = {}) {
+  const sourceFormat = metadata.sourceFormat || sourceType || 'unknown';
   return {
     version: DOCUMENT_MODEL_VERSION,
     id: makeId('document'),
@@ -48,9 +49,20 @@ export function createDocument({ name = 'เอกสารใหม่', source
     metadata: {
       fidelityMode: 'editable_reconstruction',
       importedBy: 'RipScan Document Studio',
+      sourceFileName: metadata.sourceFileName || name,
+      sourceFormat,
+      sourceMimeType: metadata.sourceMimeType || '',
+      sourcePageSize: metadata.sourcePageSize || {},
+      sourceOrientation: metadata.sourceOrientation || 'unknown',
+      sourceStructure: metadata.sourceStructure || {},
+      importAdapter: metadata.importAdapter || sourceFormat,
+      preferredRoundTripFormat: metadata.preferredRoundTripFormat || sourceFormat,
+      dualRepresentation: true,
       ...metadata,
     },
     pages: [],
+    assets: Array.isArray(assets) ? cloneValue(assets) : [],
+    exportSettings: { ...exportSettings },
     reviewIssues: [],
   };
 }
@@ -65,16 +77,27 @@ export function createPage({
   name = '',
   blocks = [],
   metadata = {},
+  visualReference = null,
+  editableLayer = null,
 } = {}) {
+  const pageWidth = Math.max(1, Number(width) || 794);
+  const pageHeight = Math.max(1, Number(height) || 1123);
+  const normalizedBlocks = blocks.map(normalizeBlock);
   return {
     id,
     number,
     name: name || `หน้า ${number}`,
-    width: Math.max(1, Number(width) || 794),
-    height: Math.max(1, Number(height) || 1123),
+    width: pageWidth,
+    height: pageHeight,
     background,
     backgroundImage,
-    blocks: blocks.map(normalizeBlock),
+    blocks: normalizedBlocks,
+    editableLayer: editableLayer ? cloneValue(editableLayer) : { blockIds: normalizedBlocks.map(block => block.id) },
+    visualReference: visualReference ? cloneValue(visualReference) : {
+      backgroundImage,
+      sourcePageSize: { width: pageWidth, height: pageHeight },
+      originalLayoutMap: [],
+    },
     metadata: { ...metadata },
   };
 }
@@ -94,6 +117,12 @@ function baseBlock(type, options = {}) {
     confidence: Number.isFinite(Number(options.confidence)) ? Number(options.confidence) : 1,
     reviewStatus: options.reviewStatus || 'verified',
     source: options.source || 'manual',
+    sourceElementType: options.sourceElementType || options.metadata?.sourceElementType || options.source || 'manual',
+    sourceElementId: options.sourceElementId || options.metadata?.sourceElementId || '',
+    sourceFormat: options.sourceFormat || options.metadata?.sourceFormat || '',
+    exportSupport: options.exportSupport || options.metadata?.exportSupport || 'native_or_compatible',
+    willRemainEditable: options.willRemainEditable !== false,
+    compatibilityNotes: Array.isArray(options.compatibilityNotes) ? [...options.compatibilityNotes] : [],
     metadata: { ...(options.metadata || {}) },
   };
 }
@@ -115,6 +144,13 @@ export function createImageBlock(options = {}) {
     alt: String(options.alt || ''),
     fit: options.fit || 'contain',
     opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
+    lockAspectRatio: options.lockAspectRatio !== false,
+    crop: {
+      left: Math.max(0, Number(options.crop?.left) || 0),
+      top: Math.max(0, Number(options.crop?.top) || 0),
+      right: Math.max(0, Number(options.crop?.right) || 0),
+      bottom: Math.max(0, Number(options.crop?.bottom) || 0),
+    },
     style: {
       borderColor: '#d1d5db',
       borderWidth: 0,
@@ -130,6 +166,7 @@ export function createShapeBlock(options = {}) {
   return {
     ...baseBlock(options.shape === 'line' ? 'line' : 'shape', options),
     shape: options.shape || 'rectangle',
+    opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
     style: {
       fill: 'transparent',
       stroke: '#111827',
@@ -155,6 +192,7 @@ export function createFieldBlock(options = {}) {
 export function createTableCell({
   id = makeId('cell'), row = 0, column = 0, rowSpan = 1, columnSpan = 1,
   text = '', style = {}, hidden = false, confidence = 1, reviewStatus = 'verified',
+  sourceElementId = '', sourceElementType = 'table_cell', sourceFormat = '', metadata = {},
 } = {}) {
   return {
     id,
@@ -166,6 +204,10 @@ export function createTableCell({
     hidden: Boolean(hidden),
     confidence: Number.isFinite(Number(confidence)) ? Number(confidence) : 1,
     reviewStatus,
+    sourceElementId,
+    sourceElementType,
+    sourceFormat,
+    metadata: { ...metadata },
     style: {
       fontFamily: "system-ui, 'Noto Sans Thai', sans-serif",
       fontSize: 14,
@@ -254,11 +296,14 @@ export function normalizeDocumentModel(documentModel) {
     ...cloneValue(documentModel || {}),
   };
   document.version = DOCUMENT_MODEL_VERSION;
+  document.metadata = { ...createDocument({ name: document.name, sourceType: document.sourceType, metadata: document.metadata }).metadata, ...(document.metadata || {}) };
   document.pages = Array.isArray(document.pages)
     ? document.pages.map((page, index) => createPage({ ...page, number: page.number || index + 1 }))
     : [];
   document.updatedAt = new Date().toISOString();
   document.reviewIssues = Array.isArray(document.reviewIssues) ? document.reviewIssues : [];
+  document.assets = Array.isArray(document.assets) ? document.assets : [];
+  document.exportSettings = document.exportSettings && typeof document.exportSettings === 'object' ? document.exportSettings : {};
   return document;
 }
 

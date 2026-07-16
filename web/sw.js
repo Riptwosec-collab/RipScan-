@@ -1,4 +1,4 @@
-const VERSION = 'ripscan-pwa-v3.1.2';
+const VERSION = 'ripscan-pwa-v4.0.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -13,6 +13,8 @@ const APP_SHELL = [
   '/book-ocr.css',
   '/table-auto.css',
   '/table-review-v31.css',
+  '/document-studio.css',
+  '/pdf-tools.css',
   '/app.js',
   '/upgrade.js',
   '/advanced.js',
@@ -30,6 +32,17 @@ const APP_SHELL = [
   '/table-reconstruction-core.mjs',
   '/table-reconstruction-worker.js',
   '/table-review-v312.js',
+  '/document-model.mjs',
+  '/office-import.mjs',
+  '/editor-export.mjs',
+  '/document-studio.js',
+  '/pdf-utility-core.mjs',
+  '/pdf-page-organizer.mjs',
+  '/pdf-worker.js',
+  '/pdf-tool-runtime.mjs',
+  '/ripscan-project.mjs',
+  '/roundtrip-export.mjs',
+  '/pdf-tools-ui.js',
   '/theme-ui.js',
   '/manifest.webmanifest',
   '/icon-192.svg',
@@ -40,6 +53,9 @@ const OFFLINE_REMOTE = [
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs',
+  'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm',
+  'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/+esm',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansthai/NotoSansThai-Regular.ttf',
 ];
 
 self.addEventListener('install', event => {
@@ -74,6 +90,7 @@ function shouldRuntimeCache(url) {
     || url.pathname.endsWith('.traineddata.gz')
     || url.pathname.endsWith('.wasm')
     || url.pathname.endsWith('.wasm.js')
+    || url.pathname.endsWith('.ttf')
     || url.pathname.endsWith('/worker.min.js');
 }
 

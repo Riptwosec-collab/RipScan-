@@ -42,7 +42,8 @@ for (const [after, asset] of [
   ['/cover-recovery.css', '/performance-v22.css'],
   ['/performance-v22.css', '/table-auto.css'],
   ['/table-auto.css', '/document-studio.css'],
-  ['/document-studio.css', '/table-review-v31.css'],
+  ['/document-studio.css', '/pdf-tools.css'],
+  ['/pdf-tools.css', '/table-review-v31.css'],
 ]) {
   if (!indexHtml.includes(`href="${asset}"`)) {
     indexHtml = indexHtml.replace(
@@ -63,6 +64,7 @@ const scripts = [
   '/cover-recovery-ui.js',
   '/performance-v22-ui.js',
   '/table-auto-ui.js',
+  '/pdf-tools-ui.js',
   '/document-studio.js',
   '/table-review-v312.js',
 ];
@@ -101,7 +103,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.2');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.0.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -109,6 +111,7 @@ const assets = [
   '/performance-v22.css',
   '/table-auto.css',
   '/document-studio.css',
+  '/pdf-tools.css',
   '/table-review-v31.css',
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
@@ -137,6 +140,13 @@ const assets = [
   '/office-import.mjs',
   '/editor-export.mjs',
   '/document-studio.js',
+  '/pdf-utility-core.mjs',
+  '/pdf-page-organizer.mjs',
+  '/pdf-worker.js',
+  '/pdf-tool-runtime.mjs',
+  '/ripscan-project.mjs',
+  '/roundtrip-export.mjs',
+  '/pdf-tools-ui.js',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -145,4 +155,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with responsive Table-first Reconstruction v3.1.2, serialized Worker detection, lazy editable Cell Review, Document Reconstruction Studio v3, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
+console.log('RipScan static site built with PDF Tools and Round-Trip Export v4, existing Document Studio and Convert Center integration, responsive Table-first Reconstruction v3.1.2, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
