@@ -6,7 +6,7 @@ import {
   validatePdfBytes,
 } from './pdf-utility-core.mjs';
 
-export const PDF_RUNTIME_VERSION = '4.0.0';
+export const PDF_RUNTIME_VERSION = '4.0.1';
 const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
 const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 
@@ -178,13 +178,14 @@ export async function renderPdfPages(fileOrBytes, options = {}) {
         context.fillStyle = options.background || '#ffffff';
         context.fillRect(0, 0, canvas.width, canvas.height);
       }
+      if (options.grayscale) context.filter = 'grayscale(1)';
       const renderTask = page.render({ canvasContext: context, viewport, background: options.transparent ? undefined : options.background || '#ffffff' });
       const abort = () => renderTask.cancel();
       options.signal?.addEventListener('abort', abort, { once: true });
       try { await renderTask.promise; }
       finally { options.signal?.removeEventListener('abort', abort); }
       const blob = await imageBlobFromCanvas(canvas, format, quality);
-      output.push({ pageIndex, blob, width: canvas.width, height: canvas.height, format });
+      output.push({ pageIndex, blob, width: canvas.width, height: canvas.height, format, grayscale: Boolean(options.grayscale) });
       releaseCanvas(canvas);
       page.cleanup();
       options.onProgress?.({ completed: position + 1, total: selected.length, label: `แปลงหน้า ${position + 1}/${selected.length}`, pageIndex });
