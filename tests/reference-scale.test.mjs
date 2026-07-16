@@ -13,16 +13,12 @@ test('desktop landing scale matches the approved compact reference', async () =>
   assert.match(css, /width:\s*min\(100%,\s*760px\)/);
 });
 
-test('reference scale performance table and Document Studio assets are injected and cached', async () => {
+test('reference scale performance table Studio and PDF Tool assets are injected and cached', async () => {
   const build = await read('build.mjs');
-  assert.ok(build.includes('/reference-scale.css'));
-  assert.ok(build.includes('/performance-v22.css'));
-  assert.ok(build.includes('/table-auto.css'));
-  assert.ok(build.includes('/table-auto-ui.js'));
-  assert.ok(build.includes('/document-studio.css'));
-  assert.ok(build.includes('/document-studio.js'));
-  assert.ok(build.includes('/table-review-v31.css'));
-  assert.ok(build.includes('/table-review-v312.js'));
-  assert.ok(build.includes('ripscan-pwa-v3.1.2'));
-  assert.ok(build.includes('Table-first Reconstruction v3.1.2'));
+  for (const required of [
+    '/reference-scale.css', '/performance-v22.css', '/table-auto.css', '/table-auto-ui.js',
+    '/document-studio.css', '/document-studio.js', '/pdf-tools.css', '/pdf-tools-ui.js',
+    '/table-review-v31.css', '/table-review-v312.js', 'ripscan-pwa-v4.0.0',
+    'Table-first Reconstruction v3.1.2',
+  ]) assert.ok(build.includes(required), `missing ${required}`);
 });
