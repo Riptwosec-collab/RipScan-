@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Table Review uses table-first grid cell OCR and Document Studio instead of pipe text', async () => {
-  const source = await read('web/table-review-v31.js');
+test('responsive Table Review keeps cell OCR and Document Studio without pipe text', async () => {
+  const source = await read('web/table-review-v312.js');
   for (const required of [
     'buildTableStructure',
     'CellOcrPool',
@@ -21,8 +21,25 @@ test('Table Review uses table-first grid cell OCR and Document Studio instead of
     'lock-grid',
     'ยกเลิก',
     'OCR สำเร็จ',
+    'ripscan:structured-table-ready',
   ]) assert.ok(source.includes(required), `missing ${required}`);
   assert.ok(!source.includes('matrixToMarkdown'));
+});
+
+test('Table Review serializes detection and lazily renders heavy editor UI', async () => {
+  const source = await read('web/table-review-v312.js');
+  for (const required of [
+    'MAX_PARALLEL_TABLE_DETECTIONS = 1',
+    'detectionQueue',
+    'drainDetectionQueue',
+    'IntersectionObserver',
+    'requestIdleCallback',
+    'sharedTableWorker',
+    'state.blob = null',
+    "expanded: false",
+    'เปิดตารางแก้ไข',
+    'pagehide',
+  ]) assert.ok(source.includes(required), `missing responsiveness guard ${required}`);
 });
 
 test('table worker detects grid and releases memory', async () => {

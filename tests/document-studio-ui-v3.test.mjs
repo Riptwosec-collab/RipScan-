@@ -71,7 +71,7 @@ test('Document Studio CSS provides three-panel WYSIWYG layout and responsive UI'
   ]) assert.ok(css.includes(required), `missing ${required}`);
 });
 
-test('production build injects Document Studio and Table-first v3.1 assets', async () => {
+test('production build injects Document Studio and responsive Table-first v3.1.2 assets', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/document-studio.css',
@@ -80,13 +80,13 @@ test('production build injects Document Studio and Table-first v3.1 assets', asy
     '/office-import.mjs',
     '/editor-export.mjs',
     '/table-review-v31.css',
-    '/table-review-v31.js',
+    '/table-review-v312.js',
     '/table-reconstruction-core.mjs',
     '/table-reconstruction-worker.js',
-    'ripscan-pwa-v3.1.0',
-    'Table-first Reconstruction v3.1',
+    'ripscan-pwa-v3.1.2',
+    'Table-first Reconstruction v3.1.2',
   ]) assert.ok(build.includes(required), `missing ${required}`);
   const packageJson = JSON.parse(await read('package.json'));
-  assert.equal(packageJson.version, '3.1.0');
-  for (const required of ['document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'document-studio.js', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js', 'table-review-v31.js']) assert.ok(packageJson.scripts.check.includes(required), `missing check ${required}`);
+  assert.equal(packageJson.version, '3.1.2');
+  for (const required of ['document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'document-studio.js', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js', 'table-review-v312.js']) assert.ok(packageJson.scripts.check.includes(required), `missing check ${required}`);
 });

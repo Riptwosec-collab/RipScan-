@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production build injects layout OCR table Document Studio and Table-first assets', async () => {
+test('production build injects layout OCR table Document Studio and responsive Table-first assets', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/layout-cover.css',
@@ -19,10 +19,10 @@ test('production build injects layout OCR table Document Studio and Table-first 
     '/performance-v22-ui.js',
     '/table-auto-ui.js',
     '/document-studio.js',
-    '/table-review-v31.js',
+    '/table-review-v312.js',
     '/book-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v3.1.0',
+    'ripscan-pwa-v3.1.2',
     'cover-ocr-core.mjs',
     'cover-recovery-core.mjs',
     'cover-hard-block.mjs',

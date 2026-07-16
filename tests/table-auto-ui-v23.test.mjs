@@ -4,22 +4,26 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('automatic table UI detects grids and publishes structured cells without pipe markdown', async () => {
+test('automatic table UI publishes structured cells without duplicate main-thread image analysis', async () => {
   const ui = await read('web/table-auto-ui.js');
   for (const required of [
-    'imageGridEvidence',
-    'tableEvidence',
-    'waitForAnalyzeButton',
-    'button.click()',
-    'waitForAnalysisTable',
     'buildCellMatrix',
     'publishStructuredTable',
     'ripscan:structured-table-ready',
     "output: 'editable-table'",
     'tableCellSeparated',
+    'requestIdleCallback',
+    'scheduleScan',
   ]) assert.ok(ui.includes(required), `missing ${required}`);
-  assert.ok(!ui.includes('matrixToMarkdown'));
-  assert.ok(!ui.includes('textarea.value = markdown'));
+  for (const forbidden of [
+    'matrixToMarkdown',
+    'textarea.value = markdown',
+    'createImageBitmap',
+    'getImageData',
+    'imageGridEvidence',
+    'waitForAnalysisTable',
+    'button.click()',
+  ]) assert.ok(!ui.includes(forbidden), `main-thread table work leaked: ${forbidden}`);
 });
 
 test('technical page buttons are removed while copy and TXT remain untouched', async () => {
@@ -33,6 +37,7 @@ test('technical page buttons are removed while copy and TXT remain untouched', a
     'ตรวจไทย–อังกฤษ',
     'ตรวจข้อความจากหน้าปก',
   ]) assert.ok(ui.includes(`'${label}'`), `missing hidden label ${label}`);
+  assert.ok(ui.includes("return 'cover-review'"));
   assert.ok(!ui.includes("TECHNICAL_LABELS.add('คัดลอกหน้านี้')"));
   assert.ok(!ui.includes("TECHNICAL_LABELS.add('ดาวน์โหลด TXT')"));
 });
