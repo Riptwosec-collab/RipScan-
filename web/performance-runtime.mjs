@@ -29,7 +29,7 @@ export function deviceClass(env = globalThis.navigator || {}) {
 
 export function performanceConfig(overrides = {}, env = globalThis.navigator || {}) {
   const device = deviceClass(env);
-  const safeMode = Boolean(overrides.safeMode ?? overrides.largeFileMode ?? device.mobile ?? device.lowMemory);
+  const safeMode = Boolean(overrides.safeMode ?? overrides.largeFileMode ?? (device.mobile || device.lowMemory));
   const heavy = safeMode || device.mobile || device.lowMemory ? DEFAULTS.heavyMobile : DEFAULTS.heavyDesktop;
   const thumbnail = safeMode || device.mobile || device.lowMemory ? DEFAULTS.thumbnailMobile : DEFAULTS.thumbnailDesktop;
   return {
@@ -100,7 +100,7 @@ export class SharedJobScheduler {
     const promise = new Promise((resolve, reject) => { resolvePromise = resolve; rejectPromise = reject; });
     const job = {
       id, type, task, priority, timeoutMs, createdAt: now(), controller,
-      resolve: resolvePromise, reject: rejectPromise, promise, state: 'pending', abort,
+      resolve: resolvePromise, reject: rejectPromise, promise, state: 'pending', abort, externalSignal: signal,
     };
     this.jobs.set(id, job);
     this.queues[type].push(job);
@@ -144,7 +144,7 @@ export class SharedJobScheduler {
   }
 
   #finish(item) {
-    item.controller?.signal && item.abort && item.controller.signal.removeEventListener?.('abort', item.abort);
+    item.externalSignal?.removeEventListener?.('abort', item.abort);
     this.jobs.delete(item.id);
   }
 
