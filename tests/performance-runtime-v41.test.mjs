@@ -11,6 +11,7 @@ import {
 
 const desktop = { hardwareConcurrency: 8, deviceMemory: 16, userAgent: 'Desktop' };
 const mobile = { hardwareConcurrency: 8, deviceMemory: 4, userAgent: 'Android Mobile' };
+const cleanupTick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 test('adaptive config caps desktop and mobile concurrency', () => {
   assert.equal(performanceConfig({}, desktop).heavyConcurrency, 2);
@@ -38,6 +39,7 @@ test('shared scheduler respects heavy concurrency and priority', async () => {
   const low = scheduler.schedule('heavy', async () => order.push('low'), { id: 'low', priority: 9 });
   const high = scheduler.schedule('heavy', async () => order.push('high'), { id: 'high', priority: 1 });
   await Promise.all([first, low, high]);
+  await cleanupTick();
   assert.deepEqual(order, ['first', 'high', 'low']);
   assert.equal(scheduler.snapshot().jobCount, 0);
 });
@@ -62,6 +64,7 @@ test('queued jobs can be cancelled without starting', async () => {
   assert.equal(scheduler.cancel('queued'), true);
   await assert.rejects(queued, /JOB_CANCELLED|Abort/);
   await running;
+  await cleanupTick();
   assert.equal(queuedStarted, false);
   assert.equal(scheduler.snapshot().jobCount, 0);
 });
