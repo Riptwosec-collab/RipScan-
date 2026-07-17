@@ -1,6 +1,7 @@
 import { loadJsZip } from './lazy-libraries.mjs';
 
 const loaded = new Map();
+const preloaded = new Set();
 const structuredExtensions = new Set(['docx', 'xlsx', 'xls', 'pptx', 'txt', 'csv', 'html', 'htm', 'rtf', 'odt', 'ods', 'odp', 'json']);
 const zippedOfficeExtensions = new Set(['docx', 'pptx', 'odt', 'ods', 'odp']);
 let resultsObserver = null;
@@ -18,6 +19,18 @@ function loadStyle(href) {
   document.head.append(link);
 }
 
+function preloadModule(url, styles = []) {
+  styles.forEach(loadStyle);
+  if (preloaded.has(url) || document.querySelector(`link[rel="modulepreload"][href="${url}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'modulepreload';
+  link.href = url;
+  link.crossOrigin = 'anonymous';
+  link.dataset.ripscanModulePreload = 'true';
+  document.head.append(link);
+  preloaded.add(url);
+}
+
 function loadModule(key, url, styles = []) {
   if (loaded.has(key)) return loaded.get(key);
   styles.forEach(loadStyle);
@@ -29,16 +42,21 @@ function loadModule(key, url, styles = []) {
   return promise;
 }
 
-async function loadStudio() {
-  await loadModule('studio', '/document-studio.js', ['/document-studio.css']);
+function removeLazyLaunchers() {
   document.querySelector('#documentStudioLazyButton')?.remove();
   document.querySelector('#convertCenterLazyButton')?.remove();
+}
+
+async function loadStudio() {
+  await loadModule('studio', '/document-studio.js', ['/document-studio.css']);
+  removeLazyLaunchers();
   return globalThis.RipScanDocumentStudio;
 }
 
 async function loadPdfTools() {
   await loadStudio();
   await loadModule('pdf-tools', '/pdf-tools-ui.js', ['/pdf-tools.css']);
+  removeLazyLaunchers();
 }
 
 async function loadBookReview() {
@@ -59,33 +77,56 @@ async function loadCoverReview() {
   ]);
 }
 
-function removeLazyLaunchers() {
-  document.querySelector('#documentStudioLazyButton')?.remove();
-  document.querySelector('#convertCenterLazyButton')?.remove();
-}
-
-function makeLauncher(id, label, action) {
+function makeLauncher(id, label, action, preload) {
   const button = document.createElement('button');
   button.id = id;
   button.className = 'studio-entry-button';
   button.type = 'button';
   button.textContent = label;
-  button.addEventListener('pointerenter', () => action(true), { once: true });
-  button.addEventListener('click', () => action(false));
+  button.addEventListener('pointerenter', preload, { once: true, passive: true });
+  button.addEventListener('focus', preload, { once: true });
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = 'กำลังเปิด…';
+    try {
+      await action();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = original;
+      console.error(error);
+      const box = document.querySelector('#error');
+      if (box) { box.hidden = false; box.textContent = error?.message || 'เปิดเครื่องมือไม่สำเร็จ'; }
+    }
+  });
   return button;
 }
 
 function installLaunchers() {
   const actions = document.querySelector('.header-actions');
   if (!actions || document.querySelector('#documentStudioButton,#documentStudioLazyButton')) return;
-  const studio = makeLauncher('documentStudioLazyButton', 'Document Studio', async preload => {
-    await loadStudio();
-    if (!preload) document.querySelector('#documentStudioButton')?.click();
-  });
-  const convert = makeLauncher('convertCenterLazyButton', 'แปลงไฟล์', async preload => {
-    await loadPdfTools();
-    if (!preload) document.querySelector('#convertCenterButton')?.click();
-  });
+  const studio = makeLauncher(
+    'documentStudioLazyButton',
+    'Document Studio',
+    async () => {
+      await loadStudio();
+      document.querySelector('#documentStudioButton')?.click();
+    },
+    () => preloadModule('/document-studio.js', ['/document-studio.css']),
+  );
+  const convert = makeLauncher(
+    'convertCenterLazyButton',
+    'แปลงไฟล์',
+    async () => {
+      await loadPdfTools();
+      document.querySelector('#convertCenterButton')?.click();
+    },
+    () => {
+      preloadModule('/document-studio.js', ['/document-studio.css']);
+      preloadModule('/pdf-tools-ui.js', ['/pdf-tools.css']);
+    },
+  );
   actions.prepend(convert);
   actions.prepend(studio);
 }
@@ -109,6 +150,11 @@ function addAdvancedButtons() {
     button.type = 'button';
     button.dataset.lazyAdvancedReview = 'true';
     button.textContent = 'ตรวจขั้นสูง';
+    button.addEventListener('pointerenter', () => {
+      preloadModule('/book-ocr-ui.js', ['/book-ocr.css']);
+      preloadModule('/table-review-v312.js', ['/table-auto.css', '/table-review-v31.css']);
+      preloadModule('/cover-ocr-ui.js', ['/cover-recovery.css']);
+    }, { once: true, passive: true });
     button.addEventListener('click', async () => {
       button.disabled = true;
       button.textContent = 'กำลังเปิดเครื่องมือ…';
@@ -152,7 +198,7 @@ document.addEventListener('change', event => {
 }, true);
 
 document.addEventListener('pointerenter', event => {
-  if (event.target.closest('#runButton')) loadModule('progress-ui', '/performance-v22-ui.js', ['/performance-v22.css']);
+  if (event.target.closest('#runButton')) preloadModule('/performance-v22-ui.js', ['/performance-v22.css']);
 }, true);
 
 document.addEventListener('click', event => {
@@ -169,7 +215,12 @@ window.addEventListener('ripscan:job-end', () => {
 });
 
 window.addEventListener('ripscan:structured-table-ready', () => loadModule('table-review', '/table-review-v312.js', ['/table-auto.css', '/table-review-v31.css']));
-window.addEventListener('pagehide', () => { resultsObserver?.disconnect(); resultsObserver = null; loaded.clear(); }, { once: true });
+window.addEventListener('pagehide', () => {
+  resultsObserver?.disconnect();
+  resultsObserver = null;
+  loaded.clear();
+  preloaded.clear();
+}, { once: true });
 
 installLaunchers();
 installResultsObserver();
@@ -180,6 +231,7 @@ globalThis.RipScanToolLoader = Object.freeze({
   loadBookReview,
   loadTableTools,
   loadCoverReview,
+  preloadModule,
   removeLazyLaunchers,
   loadedTools: () => [...loaded.keys()],
 });
