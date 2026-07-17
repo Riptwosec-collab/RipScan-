@@ -25,7 +25,11 @@ async function sizeOf(path) {
 }
 
 async function sumLocalAssets(root, sources) {
-  const values = await Promise.all(sources.filter(source => source.startsWith('/')).map(source => sizeOf(join(root, source.slice(1))));
+  const values = await Promise.all(
+    sources
+      .filter(source => source.startsWith('/'))
+      .map(source => sizeOf(join(root, source.slice(1)))),
+  );
   return values.reduce((sum, value) => sum + value, 0);
 }
 
