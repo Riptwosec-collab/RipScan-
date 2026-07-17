@@ -40,16 +40,17 @@ test('Document Studio CSS provides three-panel WYSIWYG layout and responsive UI'
   ]) assert.ok(css.includes(required), `missing ${required}`);
 });
 
-test('production build injects existing Studio responsive Table-first and PDF Tools v4 assets', async () => {
+test('production build keeps existing Studio Table-first PDF Tools and adds patch history virtualization', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/document-studio.css', '/document-studio.js', '/document-model.mjs', '/office-import.mjs',
     '/editor-export.mjs', '/table-review-v31.css', '/table-review-v312.js',
     '/table-reconstruction-core.mjs', '/table-reconstruction-worker.js',
     '/pdf-tools.css', '/pdf-tools-ui.js', '/pdf-worker.js', '/roundtrip-export.mjs',
-    'ripscan-pwa-v4.0.1', 'Table-first Reconstruction v3.1.2',
+    '/document-patch-history.mjs', '/studio-virtualization.mjs',
+    'ripscan-pwa-v5.0.0', 'Table-first Reconstruction v3.1.2',
   ]) assert.ok(build.includes(required), `missing ${required}`);
   const packageJson = JSON.parse(await read('package.json'));
-  assert.equal(packageJson.version, '4.0.1');
-  for (const required of ['document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'document-studio.js', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js', 'table-review-v312.js', 'pdf-tools-ui.js']) assert.ok(packageJson.scripts.check.includes(required), `missing check ${required}`);
+  assert.equal(packageJson.version, '5.0.0');
+  for (const required of ['document-model.mjs', 'document-patch-history.mjs', 'office-import.mjs', 'editor-export.mjs', 'document-studio.js', 'studio-virtualization.mjs', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js', 'table-review-v312.js', 'pdf-tools-ui.js']) assert.ok(packageJson.scripts.check.includes(required), `missing check ${required}`);
 });
