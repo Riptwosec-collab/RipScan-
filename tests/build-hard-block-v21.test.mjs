@@ -7,7 +7,7 @@ const read = path => readFile(path, 'utf8');
 test('production build keeps OCR hard block and responsive Table-first while adding PDF Tools v4', async () => {
   const build = await read('build.mjs');
   assert.match(build, /book-ocr-browser-performance\.mjs/);
-  assert.match(build, /ripscan-pwa-v4\.0\.0/);
+  assert.match(build, /ripscan-pwa-v4\.0\.1/);
   assert.match(build, /cover-hard-block\.mjs/);
   assert.match(build, /sara-am-recovery-v21\.mjs/);
   assert.match(build, /ocr-preprocess-worker\.js/);
@@ -31,5 +31,5 @@ test('syntax check includes OCR table document reconstruction and PDF tool modul
     'pdf-page-organizer.mjs', 'pdf-worker.js', 'pdf-tool-runtime.mjs', 'ripscan-project.mjs',
     'roundtrip-export.mjs', 'pdf-tools-ui.js',
   ]) assert.match(packageJson.scripts.check, new RegExp(required.replaceAll('.', '\\.')), `missing ${required}`);
-  assert.equal(packageJson.version, '4.0.0');
+  assert.equal(packageJson.version, '4.0.1');
 });
