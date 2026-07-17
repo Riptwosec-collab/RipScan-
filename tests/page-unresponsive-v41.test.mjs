@@ -32,6 +32,14 @@ test('production patch removes eager OCR and PDF loading and delegates OCR to wo
   assert.ok(build.includes('indexHtml.replace(\'  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>\\n\', \'\')'));
 });
 
+test('precomputed worker blocks are reused instead of automatically OCRing the same page twice', async () => {
+  const build = await read('build-performance-review.mjs');
+  for (const required of [
+    '__ripscanPrecomputedPageResults', 'workerProcessed: true', 'reuse precomputed OCR review',
+    "if (pageCard.dataset.workerOcr === 'true') return", 'lazy manual retry OCR',
+  ]) assert.ok(build.includes(required), `missing duplicate OCR prevention ${required}`);
+});
+
 test('safe mode thresholds match the emergency specification', async () => {
   const runtime = await read('web/performance-runtime.mjs');
   for (const required of [
