@@ -13,12 +13,12 @@ test('desktop landing scale matches the approved compact reference', async () =>
   assert.match(css, /width:\s*min\(100%,\s*760px\)/);
 });
 
-test('reference scale performance table Studio and PDF Tool assets are injected and cached', async () => {
+test('reference scale keeps responsive assets while performance-heavy tools are lazy', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/reference-scale.css', '/performance-v22.css', '/table-auto.css', '/table-auto-ui.js',
     '/document-studio.css', '/document-studio.js', '/pdf-tools.css', '/pdf-tools-ui.js',
-    '/table-review-v31.css', '/table-review-v312.js', 'ripscan-pwa-v4.0.1',
-    'Table-first Reconstruction v3.1.2',
+    '/table-review-v31.css', '/table-review-v312.js', 'ripscan-pwa-v5.0.0',
+    'Performance Runtime v5.0.0', 'Table-first Reconstruction v3.1.2',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });

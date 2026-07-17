@@ -1,6 +1,8 @@
-const VERSION = 'ripscan-pwa-v4.0.1';
+const VERSION = 'ripscan-pwa-v5.0.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
+const RUNTIME_LIMIT = 48;
+
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -10,11 +12,9 @@ const APP_SHELL = [
   '/verified.css',
   '/redesign.css',
   '/compact-home.css',
-  '/book-ocr.css',
-  '/table-auto.css',
-  '/table-review-v31.css',
-  '/document-studio.css',
-  '/pdf-tools.css',
+  '/layout-cover.css',
+  '/reference-scale.css',
+  '/performance-v5.css',
   '/app.js',
   '/upgrade.js',
   '/advanced.js',
@@ -23,16 +23,49 @@ const APP_SHELL = [
   '/verified-ui-fix.js',
   '/heading-auto.js',
   '/heading-structure.mjs',
+  '/theme-ui.js',
+  '/performance-runtime.mjs',
+  '/performance-bootstrap.js',
+  '/studio-virtualization.mjs',
+  '/manifest.webmanifest',
+  '/icon-192.svg',
+  '/icon-512.svg',
+];
+
+// Listed for discoverability and version consistency, but intentionally not pre-cached.
+const LAZY_LOCAL_ASSETS = [
+  '/book-ocr.css',
+  '/cover-recovery.css',
+  '/performance-v22.css',
+  '/table-auto.css',
+  '/table-review-v31.css',
+  '/document-studio.css',
+  '/pdf-tools.css',
   '/book-ocr-core.mjs',
   '/book-ocr-rules.mjs',
   '/book-ocr-browser.mjs',
+  '/book-ocr-browser-performance.mjs',
   '/book-ocr-ui.js',
+  '/cover-ocr-core.mjs',
+  '/cover-ocr-rules.mjs',
+  '/cover-recovery-core.mjs',
+  '/cover-hard-block.mjs',
+  '/cover-ocr-ui.js',
+  '/cover-recovery-ui.js',
+  '/sara-am-spacing.mjs',
+  '/sara-am-recovery-v21.mjs',
+  '/ocr-performance-core.mjs',
+  '/ocr-preprocess-worker.js',
+  '/performance-v22-ui.js',
+  '/performance-image-worker.js',
+  '/performance-image-client.mjs',
   '/table-structure-core.mjs',
   '/table-auto-ui.js',
   '/table-reconstruction-core.mjs',
   '/table-reconstruction-worker.js',
   '/table-review-v312.js',
   '/document-model.mjs',
+  '/document-patch-history.mjs',
   '/office-import.mjs',
   '/editor-export.mjs',
   '/document-studio.js',
@@ -43,11 +76,8 @@ const APP_SHELL = [
   '/ripscan-project.mjs',
   '/roundtrip-export.mjs',
   '/pdf-tools-ui.js',
-  '/theme-ui.js',
-  '/manifest.webmanifest',
-  '/icon-192.svg',
-  '/icon-512.svg',
 ];
+
 const OFFLINE_REMOTE = [
   'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js',
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
@@ -70,19 +100,39 @@ self.addEventListener('activate', event => {
   })());
 });
 
+async function trimCache(cacheName, limit = RUNTIME_LIMIT) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - limit)).map(request => cache.delete(request)));
+}
+
 async function cacheRemote(urls) {
   const cache = await caches.open(RUNTIME_CACHE);
-  await Promise.allSettled(urls.map(async url => {
-    const request = new Request(url, { mode: 'cors', credentials: 'omit' });
-    const response = await fetch(request);
-    if (response.ok || response.type === 'opaque') await cache.put(request, response.clone());
-  }));
+  for (const url of urls) {
+    try {
+      const request = new Request(url, { mode: 'cors', credentials: 'omit' });
+      const response = await fetch(request);
+      if (response.ok || response.type === 'opaque') await cache.put(request, response.clone());
+      await trimCache(RUNTIME_CACHE);
+    } catch {}
+  }
 }
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'CACHE_SHELL') event.waitUntil(caches.open(SHELL_CACHE).then(cache => cache.addAll(APP_SHELL)));
   if (event.data?.type === 'CACHE_OFFLINE_PACK') event.waitUntil(cacheRemote(OFFLINE_REMOTE));
+  if (event.data?.type === 'CLEAR_TEMPORARY_CACHE') event.waitUntil(caches.delete(RUNTIME_CACHE));
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
+function isUserOrGeneratedResource(request, url) {
+  return request.method !== 'GET'
+    || ['blob:', 'data:', 'file:'].includes(url.protocol)
+    || url.pathname.startsWith('/api/upload')
+    || url.pathname.includes('/export-result')
+    || request.headers.has('x-ripscan-user-file')
+    || request.destination === 'document' && url.searchParams.has('download');
+}
 
 function shouldRuntimeCache(url) {
   return url.hostname.endsWith('jsdelivr.net')
@@ -91,25 +141,43 @@ function shouldRuntimeCache(url) {
     || url.pathname.endsWith('.wasm')
     || url.pathname.endsWith('.wasm.js')
     || url.pathname.endsWith('.ttf')
-    || url.pathname.endsWith('/worker.min.js');
+    || url.pathname.endsWith('/worker.min.js')
+    || LAZY_LOCAL_ASSETS.includes(url.pathname);
 }
 
 async function networkFirstNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
-    const response = await fetch(request);
-    if (response.ok) cache.put('/index.html', response.clone());
+    const response = await fetch(request, { cache: 'no-cache' });
+    if (response.ok) await cache.put('/index.html', response.clone());
     return response;
   } catch {
     return await cache.match('/index.html') || await cache.match('/');
   }
 }
 
+async function networkFirstAsset(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  try {
+    const response = await fetch(request, { cache: 'no-cache' });
+    if (response.ok || response.type === 'opaque') {
+      await cache.put(request, response.clone());
+      await trimCache(RUNTIME_CACHE);
+    }
+    return response;
+  } catch {
+    return await cache.match(request) || new Response('', { status: 504, statusText: 'Offline' });
+  }
+}
+
 async function staleWhileRevalidate(request) {
-  const cache = await caches.open(request.url.startsWith(self.location.origin) ? SHELL_CACHE : RUNTIME_CACHE);
+  const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
-  const network = fetch(request).then(response => {
-    if (response.ok || response.type === 'opaque') cache.put(request, response.clone());
+  const network = fetch(request).then(async response => {
+    if (response.ok || response.type === 'opaque') {
+      await cache.put(request, response.clone());
+      await trimCache(RUNTIME_CACHE);
+    }
     return response;
   }).catch(() => null);
   return cached || await network || new Response('', { status: 504, statusText: 'Offline' });
@@ -117,11 +185,15 @@ async function staleWhileRevalidate(request) {
 
 self.addEventListener('fetch', event => {
   const request = event.request;
-  if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  if (isUserOrGeneratedResource(request, url)) return;
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));
     return;
   }
-  if (url.origin === self.location.origin || shouldRuntimeCache(url)) event.respondWith(staleWhileRevalidate(request));
+  if (url.origin === self.location.origin && /\.(?:js|mjs|css)$/iu.test(url.pathname)) {
+    event.respondWith(networkFirstAsset(request));
+    return;
+  }
+  if (shouldRuntimeCache(url)) event.respondWith(staleWhileRevalidate(request));
 });

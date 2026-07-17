@@ -1,5 +1,4 @@
 import './heading-auto.js';
-import './book-ocr-ui.js';
 
 const AUTO_VERIFIED_SETTINGS = Object.freeze({
   tableMode: 'accurate',
@@ -49,9 +48,15 @@ function enforceAutomaticVerifiedSettings() {
   document.documentElement.dataset.verifiedSettings = 'automatic';
 }
 
+let scheduled = false;
 const observer = new MutationObserver(() => {
-  if (document.querySelector('.verified-controls')) enforceAutomaticVerifiedSettings();
+  if (scheduled || !document.querySelector('.verified-controls')) return;
+  scheduled = true;
+  queueMicrotask(() => {
+    scheduled = false;
+    enforceAutomaticVerifiedSettings();
+  });
 });
-observer.observe(document.documentElement, { childList: true, subtree: true });
+observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
 
 enforceAutomaticVerifiedSettings();
