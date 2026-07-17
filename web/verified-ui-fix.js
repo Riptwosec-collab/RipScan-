@@ -1,9 +1,10 @@
 import './heading-auto.js';
 import './book-ocr-ui.js';
+import './output-cleanup-ui.js';
 
 const AUTO_VERIFIED_SETTINGS = Object.freeze({
   tableMode: 'accurate',
-  exportPolicy: 'mark_review',
+  exportPolicy: 'clean_verified_reviewed',
   delimiter: ',',
 });
 
@@ -19,7 +20,7 @@ function ensureAutomaticSettingsSentinel() {
     sentinel.setAttribute('aria-hidden', 'true');
     sentinel.innerHTML = `
       <input id="tableMode" type="hidden" value="accurate">
-      <input id="verifiedExportPolicy" type="hidden" value="mark_review">
+      <input id="verifiedExportPolicy" type="hidden" value="clean_verified_reviewed">
       <input id="verifiedDelimiter" type="hidden" value=",">
     `;
     document.body.append(sentinel);
@@ -54,4 +55,5 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
+window.addEventListener('beforeunload', () => observer.disconnect(), { once: true });
 enforceAutomaticVerifiedSettings();
