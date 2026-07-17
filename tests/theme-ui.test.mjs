@@ -34,9 +34,7 @@ test('theme CSS defines dark and light variable systems', async () => {
   const css = await read('web/redesign.css');
   assert.match(css, /html\[data-theme="dark"\]/);
   assert.match(css, /html\[data-theme="light"\]/);
-  for (const variable of ['--bg-primary','--surface','--surface-border','--text-primary','--accent-primary','--button-gradient','--glow-color','--shadow-color']) {
-    assert.ok(css.includes(variable), `missing ${variable}`);
-  }
+  for (const variable of ['--bg-primary','--surface','--surface-border','--text-primary','--accent-primary','--button-gradient','--glow-color','--shadow-color']) assert.ok(css.includes(variable), `missing ${variable}`);
 });
 
 test('compact layout is responsive and supports a single-screen desktop view', async () => {
@@ -72,6 +70,7 @@ test('verified table settings run automatically without rendering controls', asy
   assert.ok(js.includes("delimiter: ','"));
   assert.ok(js.includes("document.querySelectorAll('.verified-controls').forEach(panel => panel.remove())"));
   assert.ok(js.includes("dataset.verifiedSettings = 'automatic'"));
+  assert.ok(!js.includes("import './book-ocr-ui.js'"));
 });
 
 test('book-cover OCR UI provides requested options and clear scan button', async () => {
@@ -93,9 +92,10 @@ test('book-cover CSS is responsive and review focused', async () => {
   assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
 });
 
-test('PWA shell includes OCR table Studio and PDF Tool assets', async () => {
+test('PWA identifies core shell and lazy OCR table Studio PDF Tool assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v4.0.1'));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v5.0.0'));
+  assert.ok(serviceWorker.includes('LAZY_LOCAL_ASSETS'));
   for (const asset of [
     "'/redesign.css'", "'/compact-home.css'", "'/book-ocr.css'", "'/theme-ui.js'",
     "'/verified-ui-fix.js'", "'/heading-auto.js'", "'/heading-structure.mjs'",
