@@ -13,7 +13,7 @@ test('desktop landing scale matches the approved compact reference', async () =>
   assert.match(css, /width:\s*min\(100%,\s*760px\)/);
 });
 
-test('reference scale performance table and Document Studio assets are injected and cached', async () => {
+test('reference scale performance table Studio and PDF Tool assets are injected and cached', async () => {
   const build = await read('build.mjs');
   assert.ok(build.includes('/reference-scale.css'));
   assert.ok(build.includes('/performance-v22.css'));

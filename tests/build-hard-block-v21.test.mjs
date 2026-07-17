@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(path, 'utf8');
 
-test('production build keeps OCR hard block and adds Table-first Reconstruction v3.1', async () => {
+test('production build keeps OCR hard block and responsive Table-first while adding PDF Tools v4', async () => {
   const build = await read('build.mjs');
   assert.match(build, /book-ocr-browser-performance\.mjs/);
   assert.match(build, /ripscan-pwa-v3\.3\.1/);
@@ -15,10 +15,12 @@ test('production build keeps OCR hard block and adds Table-first Reconstruction 
   assert.match(build, /document-studio\.js/);
   assert.match(build, /table-reconstruction-core\.mjs/);
   assert.match(build, /table-reconstruction-worker\.js/);
-  assert.match(build, /table-review-v31\.js/);
+  assert.match(build, /table-review-v312\.js/);
+  assert.match(build, /pdf-tools-ui\.js/);
+  assert.match(build, /pdf-worker\.js/);
 });
 
-test('syntax check includes OCR table and document reconstruction modules', async () => {
+test('syntax check includes OCR table document reconstruction and PDF tool modules', async () => {
   const packageJson = JSON.parse(await read('package.json'));
   assert.match(packageJson.scripts.check, /book-ocr-browser-performance\.mjs/);
   assert.match(packageJson.scripts.check, /ocr-performance-core\.mjs/);

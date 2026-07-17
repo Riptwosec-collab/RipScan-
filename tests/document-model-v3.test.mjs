@@ -20,7 +20,7 @@ import {
   normalizeDocumentModel,
 } from '../web/document-model.mjs';
 
-test('Document Model stores positioned editable blocks and validates', () => {
+test('Document Model stores positioned editable blocks source metadata and validates', () => {
   const documentModel = createDocument({ name: 'ตัวอย่าง', sourceType: 'docx' });
   const page = createPage({ number: 1, width: 794, height: 1123 });
   page.blocks.push(createTextBlock({ x: 40, y: 40, width: 400, height: 60, text: 'หัวข้อเอกสาร', role: 'heading', style: { fontSize: 28, fontWeight: 700 } }));

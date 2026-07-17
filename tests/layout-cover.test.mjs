@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production build injects layout OCR table Document Studio and Table-first assets', async () => {
+test('production build injects layout OCR table Document Studio PDF Tools and responsive assets', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/layout-cover.css',
@@ -52,14 +52,8 @@ test('balanced layout expands workspace and prevents overflow', async () => {
 test('cover review UI still supports manual recovery although its page toolbar button is hidden', async () => {
   const js = await read('web/cover-ocr-ui.js');
   for (const required of [
-    'ตรวจข้อความจากหน้าปก',
-    'วาดกรอบข้อความ',
-    'เป็นรูป ไม่ใช่ข้อความ',
-    'อ่านกรอบนี้',
-    'person_name',
-    'school_name',
-    'pointerdown',
-    'pointerup',
+    'ตรวจข้อความจากหน้าปก', 'วาดกรอบข้อความ', 'เป็นรูป ไม่ใช่ข้อความ', 'อ่านกรอบนี้',
+    'person_name', 'school_name', 'pointerdown', 'pointerup',
   ]) assert.ok(js.includes(required), `missing ${required}`);
   const compact = await read('web/table-auto-ui.js');
   assert.ok(compact.includes("'ตรวจข้อความจากหน้าปก'"));
@@ -69,12 +63,8 @@ test('cover review UI still supports manual recovery although its page toolbar b
 test('cover review CSS keeps controls readable and responsive', async () => {
   const css = await read('web/layout-cover.css');
   for (const selector of [
-    '.cover-review-panel',
-    '.cover-review-grid',
-    '.cover-preview-stage',
-    '.cover-region-list',
-    '.cover-region-detail',
-    '.cover-region-actions',
+    '.cover-review-panel', '.cover-review-grid', '.cover-preview-stage', '.cover-region-list',
+    '.cover-region-detail', '.cover-region-actions',
   ]) assert.ok(css.includes(selector), `missing ${selector}`);
   assert.ok(css.includes('grid-template-columns: minmax(300px, .9fr) minmax(360px, 1.1fr)'));
 });

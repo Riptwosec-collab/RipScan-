@@ -62,6 +62,37 @@ bookUi = bookUi.replace(
 );
 await writeFile(bookUiPath, bookUi, 'utf8');
 
+const pdfToolsUiPath = 'dist/pdf-tools-ui.js';
+let pdfToolsUi = await readFile(pdfToolsUiPath, 'utf8');
+const unsafeObserver = `const observer = new MutationObserver(() => {
+  ensureUi();
+  installAnnotationTools();
+  refreshRoundTripSource();
+});
+observer.observe(document.documentElement, { childList: true, subtree: true });
+ensureUi();
+installAnnotationTools();
+document.documentElement.dataset.pdfToolsVersion = VERSION;`;
+const safeObserver = `function initializePdfTools() {
+  const ready = ensureUi() || Boolean(document.querySelector('#pdfToolsSection'));
+  installAnnotationTools();
+  refreshRoundTripSource();
+  return ready;
+}
+
+const observer = new MutationObserver(() => {
+  if (initializePdfTools()) observer.disconnect();
+});
+observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+if (initializePdfTools()) observer.disconnect();
+document.addEventListener('click', event => {
+  if (event.target.closest('#convertCenterButton,[data-studio-action="convert"]')) queueMicrotask(refreshRoundTripSource);
+}, true);
+document.documentElement.dataset.pdfToolsVersion = VERSION;`;
+if (!pdfToolsUi.includes(unsafeObserver)) throw new Error('PDF Tools observer runtime guard could not be applied');
+pdfToolsUi = pdfToolsUi.replace(unsafeObserver, safeObserver);
+await writeFile(pdfToolsUiPath, pdfToolsUi, 'utf8');
+
 const indexPath = 'dist/index.html';
 let indexHtml = await readFile(indexPath, 'utf8');
 for (const [after, asset] of [
@@ -93,6 +124,7 @@ const scripts = [
   '/cover-recovery-ui.js',
   '/performance-v22-ui.js',
   '/table-auto-ui.js',
+  '/pdf-tools-ui.js',
   '/document-studio.js',
   '/project-workspace.js',
   '/table-review-v31.js',
@@ -142,6 +174,7 @@ const assets = [
   '/performance-v22.css',
   '/table-auto.css',
   '/document-studio.css',
+  '/pdf-tools.css',
   '/table-review-v31.css',
   '/cover-ocr-core.mjs',
   '/cover-ocr-rules.mjs',
@@ -165,7 +198,7 @@ const assets = [
   '/table-auto-ui.js',
   '/table-reconstruction-core.mjs',
   '/table-reconstruction-worker.js',
-  '/table-review-v31.js',
+  '/table-review-v312.js',
   '/document-model.mjs',
   '/office-import.mjs',
   '/editor-export.mjs',

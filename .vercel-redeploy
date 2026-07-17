@@ -1,5 +1,4 @@
-Redeploy RipScan 3.1.0
-Source commit: 34c0f0754f780971dc576f71c5f6787b2aec650a
-Requested: 2026-07-13
-Attempt: 2
-Reason: redeploy the final Table-first OCR build after all 164 tests passed and the obsolete pipe-Markdown regression was removed.
+Redeploy RipScan PDF Tools v4.0.1
+Source commit: 8a991ce40c81b1f03d8023f67ce408025d45f418
+Requested: 2026-07-16
+Reason: publish browser PDF Tools, Round-Trip Export, existing Document Studio integration, and functional grayscale high-compression runtime.
