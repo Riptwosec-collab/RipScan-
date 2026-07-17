@@ -12,13 +12,16 @@ test('production build keeps layout OCR table Studio PDF Tools and lazy performa
     '/cover-ocr-ui.js', '/cover-recovery-ui.js', '/performance-v22-ui.js', '/table-auto-ui.js',
     '/document-studio.js', '/pdf-tools-ui.js', '/table-review-v312.js', '/book-ocr-ui.js',
     'class="hero-support"', 'ripscan-pwa-v5.0.0', 'cover-ocr-core.mjs',
-    'cover-recovery-core.mjs', 'cover-hard-block.mjs', 'sara-am-spacing.mjs',
+    'cover-recovery-core.mjs', 'cover-hard-block.mjs',
     'sara-am-recovery-v21.mjs', 'ocr-performance-core.mjs', 'ocr-preprocess-worker.js',
     'table-structure-core.mjs', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js',
     'document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'pdf-worker.js',
     'pdf-tool-runtime.mjs', 'roundtrip-export.mjs', 'performance-bootstrap.js',
     'performance-image-worker.js', 'studio-virtualization.mjs',
   ]) assert.ok(build.includes(required), `missing ${required}`);
+  const saraAm = await read('web/sara-am-spacing.mjs');
+  assert.ok(saraAm.includes('broken_sara_am'));
+  assert.ok(saraAm.includes('internal_grapheme_gap'));
 });
 
 test('balanced layout expands workspace and prevents overflow', async () => {
