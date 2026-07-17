@@ -77,12 +77,12 @@ test('production build and PWA cache include PDF tools after the existing Studio
     '/pdf-tool-runtime.mjs',
     '/ripscan-project.mjs',
     '/roundtrip-export.mjs',
-    'ripscan-pwa-v4.0.0',
-    'PDF Tools and Round-Trip Export v4',
+    'ripscan-pwa-v4.0.1',
+    'PDF Tools v4.0.1 runtime guard',
   ]) assert.ok(build.includes(required), `missing build asset ${required}`);
   assert.ok(build.indexOf("'/pdf-tools-ui.js'") < build.indexOf("'/document-studio.js'"), 'insertion order must make Document Studio load before PDF Tools');
-  assert.ok(sw.includes('ripscan-pwa-v4.0.0'));
+  assert.ok(sw.includes('ripscan-pwa-v4.0.1'));
   for (const required of ["'/document-studio.js'", "'/pdf-tools-ui.js'", "'/pdf-worker.js'", "'/roundtrip-export.mjs'"]) assert.ok(sw.includes(required), `missing PWA asset ${required}`);
-  assert.equal(packageJson.version, '4.0.0');
+  assert.equal(packageJson.version, '4.0.1');
   for (const required of ['pdf-utility-core.mjs', 'pdf-page-organizer.mjs', 'pdf-worker.js', 'pdf-tool-runtime.mjs', 'ripscan-project.mjs', 'roundtrip-export.mjs', 'pdf-tools-ui.js']) assert.ok(packageJson.scripts.check.includes(required), `missing syntax check ${required}`);
 });
