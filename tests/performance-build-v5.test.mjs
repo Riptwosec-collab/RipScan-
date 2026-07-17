@@ -24,7 +24,8 @@ test('bootstrap performs tool-level dynamic imports and does not duplicate exist
   for (const required of [
     "import('./document-studio.js')", "import('./pdf-tools-ui.js')", "import('./table-review-v312.js')",
     "import('./book-ocr-ui.js')", 'loadTesseract', 'loadJsZip', 'requestIdleCallback',
-    'ripscan-performance-mode', 'CLEAR_TEMPORARY_CACHE', 'largeFileMode', 'cleanupDocumentResources',
+    'ripscan-performance-mode', 'runtime.cache.clear()', 'runtime.resources.cleanupAll()',
+    'caches.delete(name)', 'largeFileMode', 'cleanupDocumentResources',
   ]) assert.ok(source.includes(required), `missing ${required}`);
   assert.ok(!source.includes("shell.id = 'documentStudio'"));
   assert.ok(!source.includes("dialog.id = 'convertCenter'"));
