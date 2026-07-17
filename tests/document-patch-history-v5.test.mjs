@@ -35,15 +35,15 @@ test('patches apply forward and backward without document snapshots in history',
   assert.deepEqual(backward, before);
 });
 
-test('DocumentPatchHistory limits entries and supports undo redo', () => {
-  const history = new DocumentPatchHistory({ limit: 3 });
+test('DocumentPatchHistory bounds entries and supports undo redo', () => {
+  const history = new DocumentPatchHistory({ limit: 10 });
   const model = fixture();
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 12; index += 1) {
     const before = clone(model);
     model.pages[0].blocks[0].x += 1;
     history.record(before, model, { label: 'move' });
   }
-  assert.equal(history.undoCount, 3);
+  assert.equal(history.undoCount, 10);
   const x = model.pages[0].blocks[0].x;
   const undone = history.undo(model);
   assert.equal(undone.model.pages[0].blocks[0].x, x - 1);
