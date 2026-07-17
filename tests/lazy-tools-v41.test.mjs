@@ -24,16 +24,18 @@ test('hover and focus use modulepreload without executing Studio or removing lau
   const loadStudioBody = loader.match(/async function loadStudio\(\) \{([\s\S]*?)\n\}/u)?.[1] || '';
   assert.ok(loadStudioBody.includes("loadModule('studio'"));
   assert.ok(loadStudioBody.includes('removeLazyLaunchers()'));
-  assert.ok(!loader.includes('pointerenter\', () => loadStudio'));
+  assert.ok(!loader.includes("pointerenter', () => loadStudio"));
 });
 
 test('production lazy build removes heavy scripts styles and JSZip from initial HTML', async () => {
   const build = await read('build-performance-lazy.mjs');
   for (const required of [
     '/document-studio.js', '/pdf-tools-ui.js', '/table-auto-ui.js', '/book-ocr-ui.js',
-    '/cover-ocr-ui.js', '/table-review-v312.js', 'jszip@3.10.1', '/tool-lazy-loader.js',
+    '/cover-ocr-ui.js', '/table-review-v312.js', '/tool-lazy-loader.js',
     '/document-studio.css', '/pdf-tools.css', '/table-auto.css', '/performance-v22.css',
   ]) assert.ok(build.includes(required), `missing lazy build rule ${required}`);
+  assert.match(build, /jszip@3\\\.10\\\.1/u);
+  assert.match(build, /html = html\.replace\([^;]+jszip[^;]+, ''\)/su);
 });
 
 test('static build audit measures before and after byte counts from the same build', async () => {
