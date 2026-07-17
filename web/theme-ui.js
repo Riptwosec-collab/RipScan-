@@ -1,3 +1,5 @@
+import './performance-emergency-ui.js';
+
 const root = document.documentElement;
 const themeToggle = document.querySelector('#themeToggle');
 const menuToggle = document.querySelector('#menuToggle');
