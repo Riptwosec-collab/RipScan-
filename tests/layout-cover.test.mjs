@@ -4,19 +4,20 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production build injects layout OCR table Document Studio PDF Tools and responsive assets', async () => {
+test('production build keeps layout OCR table Studio PDF Tools and lazy performance assets', async () => {
   const build = await read('build.mjs');
   for (const required of [
     '/layout-cover.css', '/reference-scale.css', '/cover-recovery.css', '/performance-v22.css',
     '/table-auto.css', '/document-studio.css', '/pdf-tools.css', '/table-review-v31.css',
     '/cover-ocr-ui.js', '/cover-recovery-ui.js', '/performance-v22-ui.js', '/table-auto-ui.js',
     '/document-studio.js', '/pdf-tools-ui.js', '/table-review-v312.js', '/book-ocr-ui.js',
-    'class="hero-support"', 'ripscan-pwa-v4.0.1', 'cover-ocr-core.mjs',
+    'class="hero-support"', 'ripscan-pwa-v5.0.0', 'cover-ocr-core.mjs',
     'cover-recovery-core.mjs', 'cover-hard-block.mjs', 'sara-am-spacing.mjs',
     'sara-am-recovery-v21.mjs', 'ocr-performance-core.mjs', 'ocr-preprocess-worker.js',
     'table-structure-core.mjs', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js',
     'document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'pdf-worker.js',
-    'pdf-tool-runtime.mjs', 'roundtrip-export.mjs',
+    'pdf-tool-runtime.mjs', 'roundtrip-export.mjs', 'performance-bootstrap.js',
+    'performance-image-worker.js', 'studio-virtualization.mjs',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 
