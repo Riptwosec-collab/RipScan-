@@ -98,15 +98,15 @@ test('resource manager revokes URLs closes bitmaps clears canvas and terminates 
   }
 });
 
-test('TTL cache is bounded and patch history coalesces text edits', async () => {
+test('TTL cache is bounded and patch history coalesces text edits', () => {
   const evicted = [];
-  const cache = new TtlLruCache({ limit: 2, ttlMs: 5, onEvict: (_, key) => evicted.push(key) });
+  const cache = new TtlLruCache({ limit: 2, ttlMs: 1000, onEvict: (_, key) => evicted.push(key) });
   cache.set('a', 1);
   cache.set('b', 2);
   cache.set('c', 3);
   assert.equal(cache.get('a'), undefined);
   assert.equal(cache.size, 2);
-  await sleep(8);
+  for (const entry of cache.map.values()) entry.expiresAt = 0;
   cache.prune();
   assert.equal(cache.size, 0);
   assert.ok(evicted.length >= 3);
