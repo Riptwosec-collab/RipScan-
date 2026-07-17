@@ -18,7 +18,7 @@ test('reference scale performance table Studio and PDF Tool assets are injected 
   for (const required of [
     '/reference-scale.css', '/performance-v22.css', '/table-auto.css', '/table-auto-ui.js',
     '/document-studio.css', '/document-studio.js', '/pdf-tools.css', '/pdf-tools-ui.js',
-    '/table-review-v31.css', '/table-review-v312.js', 'ripscan-pwa-v4.0.0',
+    '/table-review-v31.css', '/table-review-v312.js', 'ripscan-pwa-v4.0.1',
     'Table-first Reconstruction v3.1.2',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });

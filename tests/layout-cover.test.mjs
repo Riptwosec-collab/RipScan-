@@ -11,7 +11,7 @@ test('production build injects layout OCR table Document Studio PDF Tools and re
     '/table-auto.css', '/document-studio.css', '/pdf-tools.css', '/table-review-v31.css',
     '/cover-ocr-ui.js', '/cover-recovery-ui.js', '/performance-v22-ui.js', '/table-auto-ui.js',
     '/document-studio.js', '/pdf-tools-ui.js', '/table-review-v312.js', '/book-ocr-ui.js',
-    'class="hero-support"', 'ripscan-pwa-v4.0.0', 'cover-ocr-core.mjs',
+    'class="hero-support"', 'ripscan-pwa-v4.0.1', 'cover-ocr-core.mjs',
     'cover-recovery-core.mjs', 'cover-hard-block.mjs', 'sara-am-spacing.mjs',
     'sara-am-recovery-v21.mjs', 'ocr-performance-core.mjs', 'ocr-preprocess-worker.js',
     'table-structure-core.mjs', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js',

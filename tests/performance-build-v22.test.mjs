@@ -12,7 +12,7 @@ test('production build wires OCR performance responsive table Studio PDF worker 
     '/table-auto-ui.js', '/table-auto.css', '/table-reconstruction-core.mjs',
     '/table-reconstruction-worker.js', '/table-review-v312.js', '/table-review-v31.css',
     '/document-studio.js', '/document-studio.css', '/pdf-worker.js', '/pdf-tool-runtime.mjs',
-    'ripscan-pwa-v4.0.0',
+    'ripscan-pwa-v4.0.1',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 

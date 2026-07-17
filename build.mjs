@@ -33,6 +33,37 @@ bookUi = bookUi.replace(
 );
 await writeFile(bookUiPath, bookUi, 'utf8');
 
+const pdfToolsUiPath = 'dist/pdf-tools-ui.js';
+let pdfToolsUi = await readFile(pdfToolsUiPath, 'utf8');
+const unsafeObserver = `const observer = new MutationObserver(() => {
+  ensureUi();
+  installAnnotationTools();
+  refreshRoundTripSource();
+});
+observer.observe(document.documentElement, { childList: true, subtree: true });
+ensureUi();
+installAnnotationTools();
+document.documentElement.dataset.pdfToolsVersion = VERSION;`;
+const safeObserver = `function initializePdfTools() {
+  const ready = ensureUi() || Boolean(document.querySelector('#pdfToolsSection'));
+  installAnnotationTools();
+  refreshRoundTripSource();
+  return ready;
+}
+
+const observer = new MutationObserver(() => {
+  if (initializePdfTools()) observer.disconnect();
+});
+observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+if (initializePdfTools()) observer.disconnect();
+document.addEventListener('click', event => {
+  if (event.target.closest('#convertCenterButton,[data-studio-action="convert"]')) queueMicrotask(refreshRoundTripSource);
+}, true);
+document.documentElement.dataset.pdfToolsVersion = VERSION;`;
+if (!pdfToolsUi.includes(unsafeObserver)) throw new Error('PDF Tools observer runtime guard could not be applied');
+pdfToolsUi = pdfToolsUi.replace(unsafeObserver, safeObserver);
+await writeFile(pdfToolsUiPath, pdfToolsUi, 'utf8');
+
 const indexPath = 'dist/index.html';
 let indexHtml = await readFile(indexPath, 'utf8');
 for (const [after, asset] of [
@@ -103,7 +134,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.0.0');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.0.1');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -155,4 +186,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with PDF Tools and Round-Trip Export v4, existing Document Studio and Convert Center integration, responsive Table-first Reconstruction v3.1.2, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
+console.log('RipScan static site built with PDF Tools v4.0.1 runtime guard, Round-Trip Export v4, existing Document Studio and Convert Center integration, responsive Table-first Reconstruction v3.1.2, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
