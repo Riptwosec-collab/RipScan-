@@ -1,4 +1,5 @@
-export const DOCUMENT_MODEL_VERSION = '3.0.0';
+export const DOCUMENT_MODEL_VERSION = '3.3.0';
+export const FORM_BLOCK_TYPES = Object.freeze(['field', 'checkbox', 'radio', 'signature', 'stamp', 'barcode', 'qr', 'label', 'value']);
 
 let sequence = 0;
 
@@ -13,6 +14,13 @@ export function makeId(prefix = 'node') {
 export function cloneValue(value) {
   if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
+}
+
+function redactionMetadata(metadata = {}) {
+  return {
+    redactedAt: metadata?.redactedAt || null,
+    redactionMethod: metadata?.redactionMethod || 'burn-in-and-remove-text-layer',
+  };
 }
 
 export function defaultTextStyle(overrides = {}) {
@@ -91,6 +99,7 @@ function baseBlock(type, options = {}) {
     rotation: Number(options.rotation) || 0,
     locked: Boolean(options.locked),
     hidden: Boolean(options.hidden),
+    redacted: Boolean(options.redacted),
     confidence: Number.isFinite(Number(options.confidence)) ? Number(options.confidence) : 1,
     reviewStatus: options.reviewStatus || 'verified',
     source: options.source || 'manual',
@@ -99,20 +108,22 @@ function baseBlock(type, options = {}) {
 }
 
 export function createTextBlock(options = {}) {
+  const redacted = Boolean(options.redacted);
   return {
     ...baseBlock(options.role === 'header' || options.role === 'footer' ? options.role : 'text', options),
     role: options.role || 'paragraph',
-    text: String(options.text ?? ''),
-    spans: Array.isArray(options.spans) ? cloneValue(options.spans) : [],
+    text: redacted ? '' : String(options.text ?? ''),
+    spans: redacted ? [] : (Array.isArray(options.spans) ? cloneValue(options.spans) : []),
     style: defaultTextStyle(options.style),
   };
 }
 
 export function createImageBlock(options = {}) {
+  const redacted = Boolean(options.redacted);
   return {
     ...baseBlock('image', options),
-    src: String(options.src || ''),
-    alt: String(options.alt || ''),
+    src: redacted ? '' : String(options.src || ''),
+    alt: redacted ? '' : String(options.alt || ''),
     fit: options.fit || 'contain',
     opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
     style: {
@@ -142,30 +153,39 @@ export function createShapeBlock(options = {}) {
 }
 
 export function createFieldBlock(options = {}) {
+  const type = FORM_BLOCK_TYPES.includes(options.type) ? options.type : 'field';
+  const redacted = Boolean(options.redacted);
   return {
-    ...baseBlock('field', options),
-    label: String(options.label || ''),
-    value: String(options.value || ''),
-    fieldType: options.fieldType || 'text',
+    ...baseBlock(type, options),
+    label: redacted ? '' : String(options.label || ''),
+    value: redacted ? '' : String(options.value || ''),
+    fieldType: options.fieldType || (type === 'field' ? 'text' : type),
     checked: Boolean(options.checked),
+    choices: redacted ? [] : (Array.isArray(options.choices) ? cloneValue(options.choices) : []),
+    validation: redacted ? null : (options.validation ? cloneValue(options.validation) : null),
+    src: redacted ? '' : String(options.src || ''),
+    alt: redacted ? '' : String(options.alt || ''),
     style: defaultTextStyle(options.style),
   };
 }
 
 export function createTableCell({
   id = makeId('cell'), row = 0, column = 0, rowSpan = 1, columnSpan = 1,
-  text = '', style = {}, hidden = false, confidence = 1, reviewStatus = 'verified',
+  text = '', style = {}, hidden = false, redacted = false, confidence = 1, reviewStatus = 'verified', metadata = {},
 } = {}) {
+  const isRedacted = Boolean(redacted);
   return {
     id,
     row: Math.max(0, Number(row) || 0),
     column: Math.max(0, Number(column) || 0),
     rowSpan: Math.max(1, Number(rowSpan) || 1),
     columnSpan: Math.max(1, Number(columnSpan) || 1),
-    text: String(text ?? ''),
+    text: isRedacted ? '' : String(text ?? ''),
     hidden: Boolean(hidden),
+    redacted: isRedacted,
     confidence: Number.isFinite(Number(confidence)) ? Number(confidence) : 1,
     reviewStatus,
+    metadata: isRedacted ? redactionMetadata(metadata) : { ...metadata },
     style: {
       fontFamily: "system-ui, 'Noto Sans Thai', sans-serif",
       fontSize: 14,
@@ -199,7 +219,7 @@ export function createTableBlock({
     ...baseBlock('table', { id, ...options }),
     rows: Math.max(1, Number(rows) || 1),
     columns: Math.max(1, Number(columns) || 1),
-    cells: cells.map(createTableCell),
+    cells: cells.map(cell => createTableCell(options.redacted ? { ...cell, redacted: true } : cell)),
     columnWidths: [...columnWidths],
     rowHeights: [...rowHeights],
     merges: cloneValue(merges || []),
@@ -244,14 +264,49 @@ export function normalizeBlock(block = {}) {
   if (block.type === 'table') return createTableBlock(block);
   if (block.type === 'image') return createImageBlock(block);
   if (block.type === 'shape' || block.type === 'line') return createShapeBlock(block);
-  if (block.type === 'field') return createFieldBlock(block);
+  if (FORM_BLOCK_TYPES.includes(block.type)) return createFieldBlock(block);
   return createTextBlock(block);
 }
 
+export function migrateDocumentModel(documentModel) {
+  const source = cloneValue(documentModel || {});
+  const fromVersion = String(source.version || '1.0.0');
+  source.pages = Array.isArray(source.pages) ? source.pages : [];
+  for (const page of source.pages) {
+    page.blocks = Array.isArray(page.blocks) ? page.blocks : [];
+    for (const block of page.blocks) {
+      if (block.type === 'field' && block.fieldType === 'checkbox') block.type = 'checkbox';
+      if (block.type === 'field' && block.fieldType === 'radio') block.type = 'radio';
+      if (block.redacted) {
+        block.text = '';
+        block.value = '';
+        block.label = '';
+        block.alt = '';
+        block.src = '';
+        block.spans = [];
+        block.choices = [];
+        block.validation = null;
+        if (Array.isArray(block.cells)) block.cells.forEach(cell => { cell.text = ''; cell.redacted = true; });
+        block.metadata = redactionMetadata(block.metadata);
+      }
+      if (Array.isArray(block.cells)) block.cells.forEach(cell => {
+        if (!cell.redacted) return;
+        cell.text = '';
+        cell.metadata = redactionMetadata(cell.metadata);
+      });
+      if (!block.redacted) block.metadata = { ...(block.metadata || {}), migratedFrom: block.metadata?.migratedFrom || fromVersion };
+    }
+  }
+  source.metadata = { ...(source.metadata || {}), modelMigratedFrom: source.metadata?.modelMigratedFrom || fromVersion };
+  source.version = DOCUMENT_MODEL_VERSION;
+  return source;
+}
+
 export function normalizeDocumentModel(documentModel) {
+  const migrated = migrateDocumentModel(documentModel);
   const document = {
     ...createDocument(),
-    ...cloneValue(documentModel || {}),
+    ...migrated,
   };
   document.version = DOCUMENT_MODEL_VERSION;
   document.pages = Array.isArray(document.pages)
@@ -271,7 +326,7 @@ export function validateDocumentModel(documentModel) {
     if (!Array.isArray(page.blocks)) errors.push(`page_${pageIndex}_blocks_missing`);
     for (const block of page.blocks || []) {
       if (!block.id) errors.push(`page_${pageIndex}_block_id_missing`);
-      if (!['text', 'header', 'footer', 'table', 'image', 'shape', 'line', 'field'].includes(block.type)) errors.push(`block_${block.id}_type_invalid`);
+      if (!['text', 'header', 'footer', 'table', 'image', 'shape', 'line', ...FORM_BLOCK_TYPES].includes(block.type)) errors.push(`block_${block.id}_type_invalid`);
       if (!(block.width > 0 && block.height > 0)) errors.push(`block_${block.id}_size_invalid`);
       if (block.type === 'table') {
         if (!(block.rows > 0 && block.columns > 0)) errors.push(`table_${block.id}_dimensions_invalid`);
@@ -409,10 +464,14 @@ export function splitTableCell(table, cellId) {
 
 export function documentToPlainText(documentModel) {
   return (documentModel.pages || []).map(page => (page.blocks || [])
+    .filter(block => !block.redacted && !block.hidden)
     .sort((a, b) => a.y - b.y || a.x - b.x)
     .map(block => {
       if (block.type === 'table') {
-        return Array.from({ length: block.rows }, (_, row) => Array.from({ length: block.columns }, (_, column) => getTableCell(block, row, column)?.text || '').join('\t')).join('\n');
+        return Array.from({ length: block.rows }, (_, row) => Array.from({ length: block.columns }, (_, column) => {
+          const cell = getTableCell(block, row, column);
+          return cell && !cell.redacted ? cell.text || '' : '';
+        }).join('\t')).join('\n');
       }
       if (block.type === 'field') return `${block.label}${block.label ? ': ' : ''}${block.value}`;
       return block.text || '';

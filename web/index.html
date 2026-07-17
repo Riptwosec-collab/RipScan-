@@ -32,6 +32,14 @@
   <link rel="stylesheet" href="/verified.css">
   <link rel="stylesheet" href="/redesign.css">
   <link rel="stylesheet" href="/compact-home.css">
+  <link rel="stylesheet" href="/layout-cover.css">
+  <link rel="stylesheet" href="/reference-scale.css">
+  <link rel="stylesheet" href="/cover-recovery.css">
+  <link rel="stylesheet" href="/performance-v22.css">
+  <link rel="stylesheet" href="/table-auto.css">
+  <link rel="stylesheet" href="/document-studio.css">
+  <link rel="stylesheet" href="/table-review-v31.css">
+  <link rel="stylesheet" href="/quality-center.css">
 </head>
 <body>
   <div class="site-backdrop" aria-hidden="true">
@@ -158,7 +166,7 @@
           </button>
         </div>
 
-        <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span></div>
+        <div id="status" class="status" hidden><span class="spinner"></span><span id="statusText">กำลังประมวลผล…</span><button id="pauseOcrButton" class="secondary" type="button">พักหลังหน้าปัจจุบัน</button><button id="cancelOcrButton" class="secondary" type="button">ยกเลิก</button></div>
         <div id="error" class="error" hidden></div>
       </aside>
     </section>
@@ -174,7 +182,7 @@
       </article>
       <article class="feature-item">
         <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-        <strong>ปลอดภัย 100%</strong>
+        <strong>ประมวลผลในเบราว์เซอร์</strong>
       </article>
       <article class="feature-item">
         <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7V3Z"/><path d="M15 3v5h5M4 7v14h11"/></svg></span>
@@ -191,13 +199,28 @@
     <input id="verifiedDelimiter" type="hidden" value=",">
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    window.__ripscanOcrRuntime = {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0/tesseract-core-lstm.wasm.js',
+    };
+  </script>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/upgrade.js"></script>
   <script type="module" src="/advanced.js"></script>
   <script type="module" src="/verified-ui-fix.js"></script>
   <script type="module" src="/verified.js"></script>
   <script type="module" src="/theme-ui.js"></script>
+  <script type="module" src="/quality-center.js"></script>
+  <script type="module" src="/table-review-v31.js"></script>
+  <script type="module" src="/project-workspace.js"></script>
+  <script type="module" src="/document-studio.js"></script>
+  <script type="module" src="/table-auto-ui.js"></script>
+  <script type="module" src="/performance-v22-ui.js"></script>
+  <script type="module" src="/cover-recovery-ui.js"></script>
+  <script type="module" src="/cover-ocr-ui.js"></script>
+  <script type="module" src="/book-ocr-ui.js"></script>
 </body>
 </html>

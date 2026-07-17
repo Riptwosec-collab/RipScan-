@@ -83,10 +83,10 @@ test('production build injects Document Studio and Table-first v3.1 assets', asy
     '/table-review-v31.js',
     '/table-reconstruction-core.mjs',
     '/table-reconstruction-worker.js',
-    'ripscan-pwa-v3.1.0',
+    'ripscan-pwa-v3.3.1',
     'Table-first Reconstruction v3.1',
   ]) assert.ok(build.includes(required), `missing ${required}`);
   const packageJson = JSON.parse(await read('package.json'));
-  assert.equal(packageJson.version, '3.1.0');
+  assert.equal(packageJson.version, '3.3.1');
   for (const required of ['document-model.mjs', 'office-import.mjs', 'editor-export.mjs', 'document-studio.js', 'table-reconstruction-core.mjs', 'table-reconstruction-worker.js', 'table-review-v31.js']) assert.ok(packageJson.scripts.check.includes(required), `missing check ${required}`);
 });

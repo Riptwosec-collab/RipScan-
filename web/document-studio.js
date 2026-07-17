@@ -38,7 +38,10 @@ const STUDIO_VERSION = '3.0.0';
 const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.docx,.xlsx,.xls,.pptx,.txt,.csv,.html,.htm,.rtf,.odt,.ods,.odp,.json';
 const DB_NAME = 'ripscan-document-studio';
 const DB_STORE = 'documents';
+const DB_VERSIONS = 'versions';
 const MAX_HISTORY = 50;
+const AUTOSAVE_DELAY = 2500;
+let autosaveTimer = 0;
 
 const state = {
   model: null,
@@ -95,6 +98,18 @@ function snapshot(label = 'แก้ไข') {
   state.future = [];
   state.dirty = true;
   updateHistoryButtons();
+  scheduleAutosave();
+}
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  const status = $('#studioProgressText');
+  if (status) status.textContent = navigator.onLine ? 'มีการแก้ไข · รอบันทึกอัตโนมัติ' : 'ออฟไลน์ · รอบันทึกในเครื่อง';
+  autosaveTimer = setTimeout(() => saveDocumentLocal().then(() => {
+    if (status) status.textContent = `บันทึกอัตโนมัติแล้ว ${new Date().toLocaleTimeString('th-TH')}`;
+  }).catch(error => {
+    if (status) status.textContent = `บันทึกอัตโนมัติไม่สำเร็จ: ${error.message}`;
+  }), AUTOSAVE_DELAY);
 }
 
 function undo() {
@@ -130,10 +145,11 @@ function updateHistoryButtons() {
 
 async function openDb() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, 2);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(DB_STORE)) database.createObjectStore(DB_STORE, { keyPath: 'id' });
+      if (!database.objectStoreNames.contains(DB_VERSIONS)) database.createObjectStore(DB_VERSIONS, { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('เปิดฐานข้อมูลในเบราว์เซอร์ไม่สำเร็จ'));
@@ -449,6 +465,7 @@ function installShellEvents(shell) {
       state.future = [];
       state.dirty = true;
       updateHistoryButtons();
+      scheduleAutosave();
     }
     state.editingSnapshot = null;
   });
@@ -490,8 +507,8 @@ function tableHtml(block, interactive = true) {
   const rows = Array.from({ length: block.rows }, (_, row) => {
     const cells = block.cells.filter(cell => !cell.hidden && cell.row === row).sort((a, b) => a.column - b.column).map(cell => {
       const selected = state.selectedCellIds.has(cell.id);
-      const attributes = interactive ? `contenteditable="true" data-table-cell="${cell.id}" data-block-id="${block.id}"` : '';
-      return `<td ${attributes} rowspan="${cell.rowSpan}" colspan="${cell.columnSpan}" class="${selected ? 'selected-cell' : ''}" style="${styleToCss(cell.style)}">${escapeHtml(cell.text).replace(/\n/gu, '<br>')}</td>`;
+      const attributes = interactive && !cell.redacted ? `contenteditable="true" data-table-cell="${cell.id}" data-block-id="${block.id}"` : '';
+      return `<td ${attributes} rowspan="${cell.rowSpan}" colspan="${cell.columnSpan}" class="${selected ? 'selected-cell' : ''} ${cell.redacted ? 'studio-redaction' : ''}" style="${styleToCss(cell.style)}">${cell.redacted ? '<span class="sr-only">ข้อมูลถูกปิดบัง</span>' : escapeHtml(cell.text).replace(/\n/gu, '<br>')}</td>`;
     }).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
@@ -503,10 +520,16 @@ function blockHtml(block, { exportMode = false } = {}) {
   const selected = !exportMode && block.id === state.selectedBlockId;
   const common = `data-block-id="${block.id}" class="studio-block studio-block-${block.type} ${selected ? 'selected' : ''} ${block.locked ? 'locked' : ''}" style="${blockPositionStyle(block)}${block.hidden ? 'display:none;' : ''}"`;
   const controls = exportMode ? '' : '<button type="button" class="studio-block-handle" aria-label="ลากย้าย">⋮⋮</button><span class="studio-resize-handle" aria-hidden="true"></span>';
+  if (block.redacted) return `<div ${common}>${controls}<div class="studio-redaction" role="img" aria-label="ข้อมูลถูกปิดบังถาวรในผลส่งออก"></div></div>`;
   if (block.type === 'table') return `<div ${common}>${controls}${tableHtml(block, !exportMode)}</div>`;
   if (block.type === 'image') return `<div ${common}>${controls}<img src="${escapeHtml(block.src)}" alt="${escapeHtml(block.alt || '')}" style="width:100%;height:100%;object-fit:${block.fit || 'contain'};opacity:${block.opacity ?? 1};${styleToCss(block.style)}"></div>`;
   if (block.type === 'shape' || block.type === 'line') return `<div ${common}>${controls}<div class="studio-shape" style="width:100%;height:100%;background:${block.style?.fill || 'transparent'};border:${block.style?.strokeWidth || 1}px ${block.style?.dash || 'solid'} ${block.style?.stroke || '#111827'};border-radius:${block.style?.borderRadius || 0}px"></div></div>`;
-  if (block.type === 'field') return `<div ${common}>${controls}<div class="studio-field-content" contenteditable="${!exportMode}" data-field-content="${block.id}" style="${styleToCss(block.style)}"><strong>${escapeHtml(block.label)}</strong>${block.label ? ': ' : ''}${block.fieldType === 'checkbox' ? `<input type="checkbox" ${block.checked ? 'checked' : ''} disabled>` : escapeHtml(block.value)}</div></div>`;
+  if (['field', 'checkbox', 'radio', 'signature', 'stamp', 'barcode', 'qr', 'label', 'value'].includes(block.type)) {
+    const control = ['checkbox', 'radio'].includes(block.type) ? `<input type="${block.type}" ${block.checked ? 'checked' : ''} disabled>`
+      : ['signature', 'stamp'].includes(block.type) && block.src ? `<img src="${escapeHtml(block.src)}" alt="${escapeHtml(block.alt || block.type)}" style="max-width:100%;max-height:100%;object-fit:contain">`
+        : escapeHtml(block.value || (['label', 'value'].includes(block.type) ? block.label : ''));
+    return `<div ${common}>${controls}<div class="studio-field-content studio-${block.type}" contenteditable="${!exportMode && !['checkbox', 'radio', 'signature', 'stamp'].includes(block.type)}" data-field-content="${block.id}" style="${styleToCss(block.style)}"><strong>${escapeHtml(!['value'].includes(block.type) ? block.label : '')}</strong>${block.label && !['label', 'value'].includes(block.type) ? ': ' : ''}${control}</div></div>`;
+  }
   return `<div ${common}>${controls}<div class="studio-text-content" contenteditable="${!exportMode}" data-text-content="${block.id}" style="${styleToCss(block.style)}">${escapeHtml(block.text).replace(/\n/gu, '<br>')}</div></div>`;
 }
 
@@ -533,11 +556,42 @@ function renderStudio() {
   renderProperties();
   updateHistoryButtons();
   installBlockPointerHandlers();
+  document.dispatchEvent(new CustomEvent('ripscan:studio-model', { detail: { model: state.model, activePage: state.activePage, selectedBlockId: state.selectedBlockId } }));
+}
+
+async function saveVersionLocal(label = 'Named Version') {
+  if (!state.model) return;
+  const database = await openDb();
+  const version = { id: `${state.model.id}:${Date.now()}`, documentId: state.model.id, label, createdAt: new Date().toISOString(), model: cloneValue(state.model) };
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(DB_VERSIONS, 'readwrite');
+    transaction.objectStore(DB_VERSIONS).put(version);
+    transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error);
+  });
+  database.close();
+  return version;
+}
+
+async function listVersionsLocal() {
+  if (!state.model) return [];
+  const database = await openDb();
+  const versions = await new Promise((resolve, reject) => {
+    const request = database.transaction(DB_VERSIONS, 'readonly').objectStore(DB_VERSIONS).getAll();
+    request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error);
+  });
+  database.close();
+  return versions.filter(version => version.documentId === state.model.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function deleteVersionLocal(id) {
+  const database = await openDb();
+  await new Promise((resolve, reject) => { const transaction = database.transaction(DB_VERSIONS, 'readwrite'); transaction.objectStore(DB_VERSIONS).delete(id); transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error); });
+  database.close();
 }
 
 function renderStructureView(page) {
   const blocks = page.blocks.slice().sort((a, b) => a.y - b.y || a.x - b.x);
-  return `<div class="structure-page-head"><div><strong>${escapeHtml(page.name)}</strong><small>${page.blocks.length} blocks · ${Math.round(page.width)}×${Math.round(page.height)}</small></div><button type="button" data-studio-action="add-text">+ ข้อความ</button></div><div class="structure-block-list">${blocks.map((block, index) => `<button type="button" class="structure-block-item ${block.id === state.selectedBlockId ? 'active' : ''}" data-select-block="${block.id}"><span>${index + 1}</span><div><strong>${escapeHtml(block.type)}</strong><small>x ${Math.round(block.x)} · y ${Math.round(block.y)} · ${Math.round(block.width)}×${Math.round(block.height)}</small><p>${escapeHtml(block.type === 'table' ? `ตาราง ${block.rows}×${block.columns}` : block.type === 'image' ? block.alt || 'รูปภาพ' : block.type === 'field' ? `${block.label}: ${block.value}` : block.text || '').slice(0, 180)}</p></div><em>${escapeHtml(block.reviewStatus || 'verified')}</em></button>`).join('')}</div>`;
+  return `<div class="structure-page-head"><div><strong>${escapeHtml(page.name)}</strong><small>${page.blocks.length} blocks · ${Math.round(page.width)}×${Math.round(page.height)}</small></div><button type="button" data-studio-action="add-text">+ ข้อความ</button></div><div class="structure-block-list">${blocks.map((block, index) => `<button type="button" class="structure-block-item ${block.id === state.selectedBlockId ? 'active' : ''}" data-select-block="${block.id}"><span>${index + 1}</span><div><strong>${escapeHtml(block.type)}</strong><small>x ${Math.round(block.x)} · y ${Math.round(block.y)} · ${Math.round(block.width)}×${Math.round(block.height)}</small><p>${escapeHtml(block.type === 'table' ? `ตาราง ${block.rows}×${block.columns}` : block.type === 'image' ? block.alt || 'รูปภาพ' : ['field', 'checkbox', 'radio', 'signature', 'stamp', 'barcode', 'qr', 'label', 'value'].includes(block.type) ? `${block.label}: ${block.value}` : block.text || '').slice(0, 180)}</p></div><em>${escapeHtml(block.reviewStatus || 'verified')}</em></button>`).join('')}</div>`;
 }
 
 function propertyInput(label, field, value, type = 'number', extra = '') {
@@ -587,7 +641,7 @@ function handleStudioInput(event) {
     state.dirty = true;
     return;
   }
-  if (event.target.matches('[data-field-content]') && block?.type === 'field') {
+  if (event.target.matches('[data-field-content]') && ['field', 'barcode', 'qr', 'label', 'value'].includes(block?.type)) {
     const text = event.target.innerText;
     block.value = block.label && text.startsWith(block.label) ? text.slice(block.label.length).replace(/^:\s*/u, '') : text;
     state.dirty = true;
@@ -677,7 +731,7 @@ async function handleStudioClick(event) {
   try {
     if (action === 'close') return closeStudio();
     if (action === 'import') return $('#studioFileInput').click();
-    if (action === 'save') return await saveDocumentLocal();
+    if (action === 'save') { await saveDocumentLocal(); await saveVersionLocal('Manual Save'); return; }
     if (action === 'load-latest') return await loadLatestDocument();
     if (action === 'undo') return undo();
     if (action === 'redo') return redo();
@@ -803,7 +857,7 @@ function ensureConvertCenter() {
       <header><div><strong>Convert Center</strong><small>PDF · Searchable PDF · JPG · PNG · DOCX · XLSX</small></div><button type="button" data-convert-action="close">×</button></header>
       <div class="convert-grid">
         <section><h3>เอกสารต้นทาง</h3><div class="convert-source"><strong id="convertSourceName">ยังไม่มีเอกสาร</strong><span id="convertSourceInfo">นำเข้าไฟล์หรือเปิดจาก Editor</span><button type="button" data-convert-action="import">เลือกไฟล์ใหม่</button></div><div id="convertPageSelection" class="convert-page-selection"></div></section>
-        <section><h3>รูปแบบผลลัพธ์</h3><label>แปลงเป็น<select id="convertFormat"><option value="pdf">PDF</option><option value="searchable-pdf">Searchable PDF (ผ่าน Print)</option><option value="png">PNG</option><option value="jpg">JPG</option><option value="docx">DOCX</option><option value="xlsx">XLSX</option><option value="txt">TXT</option><option value="json">JSON Structured</option></select></label><label>ขนาดหน้า<select id="convertPageSize"><option value="source">ตามต้นฉบับ</option><option value="A4">A4</option><option value="A5">A5</option><option value="Letter">Letter</option><option value="Legal">Legal</option><option value="custom">กำหนดเอง</option></select></label><label>แนวกระดาษ<select id="convertOrientation"><option value="portrait">แนวตั้ง</option><option value="landscape">แนวนอน</option></select></label></section>
+        <section><h3>รูปแบบผลลัพธ์</h3><label>แปลงเป็น<select id="convertFormat"><option value="pdf">PDF แบบภาพ</option><option value="searchable-pdf">Searchable PDF ดาวน์โหลดตรง</option><option value="png">PNG</option><option value="jpg">JPG</option><option value="docx">DOCX</option><option value="xlsx">XLSX</option><option value="txt">TXT</option><option value="json">JSON Structured</option></select></label><label class="property-check"><input id="convertIncludeReview" type="checkbox"> รวมข้อความที่ยังต้องตรวจใน Text Layer</label><label>ขนาดหน้า<select id="convertPageSize"><option value="source">ตามต้นฉบับ</option><option value="A4">A4</option><option value="A5">A5</option><option value="Letter">Letter</option><option value="Legal">Legal</option><option value="custom">กำหนดเอง</option></select></label><label>แนวกระดาษ<select id="convertOrientation"><option value="portrait">แนวตั้ง</option><option value="landscape">แนวนอน</option></select></label></section>
         <section><h3>ขนาดและคุณภาพ</h3><div class="convert-size-grid"><label>กว้าง<input id="convertWidth" type="number" min="1" placeholder="ตามต้นฉบับ"></label><label>สูง<input id="convertHeight" type="number" min="1" placeholder="ตามต้นฉบับ"></label><label>Scale %<input id="convertScale" type="number" min="10" max="800" value="100"></label><label>DPI<input id="convertDpi" type="number" min="72" max="600" value="144"></label></div><label class="property-check"><input id="convertKeepAspect" type="checkbox" checked> รักษาสัดส่วน</label><label>Fit<select id="convertFit"><option value="contain">พอดีพื้นที่</option><option value="cover">เต็มพื้นที่</option></select></label><label>คุณภาพ <output id="convertQualityValue">92%</output><input id="convertQuality" type="range" min="10" max="100" value="92"></label><label>พื้นหลัง<input id="convertBackground" type="color" value="#ffffff"></label><label class="property-check"><input id="convertTransparent" type="checkbox"> พื้นหลังโปร่งใส (PNG)</label></section>
       </div>
       <div class="convert-progress"><progress id="convertProgress" max="100" value="0"></progress><span id="convertProgressText">พร้อมแปลงไฟล์</span></div>
@@ -865,6 +919,7 @@ function conversionOptions() {
     background: $('#convertBackground').value,
     transparent: $('#convertTransparent').checked,
     selectedPages,
+    includeReviewRequired: $('#convertIncludeReview').checked,
   });
 }
 
@@ -927,6 +982,18 @@ function installEntryPoints() {
     });
     headerActions.prepend(convertButton);
     headerActions.prepend(studioButton);
+
+    const mobileNav = document.createElement('nav');
+    mobileNav.id = 'mobileWorkflowNav';
+    mobileNav.className = 'mobile-workflow-nav';
+    mobileNav.setAttribute('aria-label', 'ขั้นตอนทำงาน');
+    mobileNav.innerHTML = '<button type="button" data-mobile-action="studio">Studio</button><button type="button" data-mobile-action="convert">Convert</button>';
+    mobileNav.addEventListener('click', event => {
+      const action = event.target.dataset.mobileAction;
+      if (action === 'studio') studioButton.click();
+      if (action === 'convert') convertButton.click();
+    });
+    document.body.append(mobileNav);
   }
   const mainInput = $('#fileInput');
   if (mainInput) mainInput.accept = FILE_ACCEPT;
@@ -962,6 +1029,30 @@ function installEntryPoints() {
     scan();
   }
 }
+
+document.addEventListener('ripscan:replace-model', event => {
+  if (!event.detail?.model) return;
+  snapshot(event.detail.label || 'แก้จาก Quality Center');
+  state.model = normalizeDocumentModel(event.detail.model);
+  state.selectedBlockId = event.detail.blockId || state.selectedBlockId;
+  state.activePage = Math.max(0, Math.min(Number(event.detail.pageIndex ?? state.activePage), state.model.pages.length - 1));
+  renderStudio();
+});
+
+document.addEventListener('ripscan:select-block', event => {
+  if (!state.model || !event.detail?.blockId) return;
+  state.activePage = Math.max(0, Math.min(Number(event.detail.pageIndex || 0), state.model.pages.length - 1));
+  state.selectedBlockId = event.detail.blockId;
+  state.viewMode = 'visual';
+  renderStudio();
+});
+
+globalThis.RipScanStudioVersions = {
+  list: listVersionsLocal,
+  save: saveVersionLocal,
+  remove: deleteVersionLocal,
+  restore(version) { if (!version?.model) throw new Error('Version ไม่สมบูรณ์'); openModel(version.model); },
+};
 
 window.addEventListener('keydown', event => {
   if ($('#documentStudio')?.hidden !== false) return;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DOCUMENT_MODEL_VERSION,
+  createFieldBlock,
   createDocument,
   createPage,
   createTextBlock,
@@ -16,6 +17,7 @@ import {
   getTableCell,
   validateDocumentModel,
   documentToPlainText,
+  normalizeDocumentModel,
 } from '../web/document-model.mjs';
 
 test('Document Model stores positioned editable blocks and validates', () => {
@@ -25,10 +27,22 @@ test('Document Model stores positioned editable blocks and validates', () => {
   page.blocks.push(createTableBlock({ rows: 2, columns: 2, x: 40, y: 120, width: 500, height: 100 }));
   documentModel.pages.push(page);
   const result = validateDocumentModel(documentModel);
-  assert.equal(DOCUMENT_MODEL_VERSION, '3.0.0');
+  assert.equal(DOCUMENT_MODEL_VERSION, '3.3.0');
   assert.equal(result.valid, true);
   assert.equal(page.blocks[0].x, 40);
   assert.equal(page.blocks[0].style.fontSize, 28);
+});
+
+test('migrates legacy field controls and preserves irreversible redaction', () => {
+  const migrated = normalizeDocumentModel({ version: '3.0.0', pages: [{ width: 100, height: 100, blocks: [
+    createFieldBlock({ id: 'check-1', fieldType: 'checkbox', checked: true }),
+    { id: 'secret', type: 'text', x: 0, y: 0, width: 20, height: 20, text: 'secret', redacted: true },
+  ] }] });
+  assert.equal(migrated.version, '3.3.0');
+  assert.equal(migrated.pages[0].blocks[0].type, 'checkbox');
+  assert.equal(migrated.pages[0].blocks[1].text, '');
+  assert.equal(migrated.metadata.modelMigratedFrom, '3.0.0');
+  assert.equal(normalizeDocumentModel(migrated).metadata.modelMigratedFrom, '3.0.0');
 });
 
 test('table add/delete row and column keeps a complete editable grid', () => {

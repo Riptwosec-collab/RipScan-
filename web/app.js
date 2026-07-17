@@ -23,6 +23,9 @@ const state = {
   histories: new Map(),
   viewers: new Map(),
   searches: new Map(),
+  cancelled: false,
+  paused: false,
+  resumeWaiters: [],
 };
 
 const input = document.querySelector('#fileInput');
@@ -37,6 +40,8 @@ const statusText = document.querySelector('#statusText');
 const errorBox = document.querySelector('#error');
 const results = document.querySelector('#results');
 const health = document.querySelector('#health');
+const cancelOcrButton = document.querySelector('#cancelOcrButton');
+const pauseOcrButton = document.querySelector('#pauseOcrButton');
 
 const formatBytes = bytes => bytes < 1024 * 1024
   ? `${(bytes / 1024).toFixed(1)} KB`
@@ -82,6 +87,7 @@ function addFiles(files, { replace = false } = {}) {
   if (incoming.length > available) showError(`รับเพิ่มได้ ${available} ไฟล์ ระบบตัดไฟล์ส่วนเกินออก`);
   else errorBox.hidden = true;
   renderFileList();
+  document.dispatchEvent(new CustomEvent('ripscan:files-added', { detail: { files: incoming.slice(0, available).map(file => ({ name: file.name, size: file.size, type: file.type, lastModified: file.lastModified })) } }));
 }
 
 function showError(message) {
@@ -95,6 +101,14 @@ function setBusy(busy, text = 'กำลังประมวลผล…') {
   runButton.disabled = busy || !state.files.length;
   clearButton.disabled = busy || !state.files.length;
   pasteButton.disabled = busy;
+  if (cancelOcrButton) { cancelOcrButton.hidden = !busy; cancelOcrButton.disabled = !busy; }
+  if (pauseOcrButton) { pauseOcrButton.hidden = !busy; pauseOcrButton.disabled = !busy; pauseOcrButton.textContent = 'พักหลังหน้าปัจจุบัน'; }
+}
+
+function waitIfPaused() {
+  if (!state.paused) return Promise.resolve();
+  statusText.textContent = 'พักคิวแล้ว · กดทำงานต่อเพื่อดำเนินการ';
+  return new Promise(resolve => state.resumeWaiters.push(resolve));
 }
 
 function updateProgress(message) {
@@ -478,6 +492,8 @@ async function processPdf(file, fileIndex) {
   const pages = [];
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      await waitIfPaused();
+      if (state.cancelled) throw new Error('ยกเลิกงานแล้ว');
       const label = `ไฟล์ ${fileIndex + 1}/${state.files.length} · หน้า ${pageNumber}/${pdf.numPages}`;
       state.progressContext = label;
       statusText.textContent = `${label} · กำลังอ่านและจัดหน้า`;
@@ -877,19 +893,47 @@ runButton.addEventListener('click', async () => {
   errorBox.hidden = true;
   results.innerHTML = '';
   state.documents = [];
+  state.cancelled = false;
+  state.paused = false;
   cleanupObjectUrls();
   setBusy(true, 'กำลังเตรียมเอกสารและปรับภาพอัตโนมัติ…');
   try {
     const documents = [];
-    for (let index = 0; index < state.files.length; index += 1) documents.push(await processFile(state.files[index], index));
+    for (let index = 0; index < state.files.length; index += 1) {
+      if (state.cancelled) throw new Error('ยกเลิกงานแล้ว');
+      const file = state.files[index];
+      document.dispatchEvent(new CustomEvent('ripscan:job-status', { detail: { file, status: 'processing', progress: 0 } }));
+      try {
+        const result = await processFile(file, index);
+        documents.push(result);
+        document.dispatchEvent(new CustomEvent('ripscan:job-status', { detail: { file, status: 'completed', progress: 1, result } }));
+      } catch (error) {
+        document.dispatchEvent(new CustomEvent('ripscan:job-status', { detail: { file, status: state.cancelled ? 'cancelled' : 'failed', error: error?.message || String(error) } }));
+        throw error;
+      }
+    }
     renderResults(documents);
   } catch (error) {
     console.error(error);
-    showError(error?.message || 'แปลงไฟล์ไม่สำเร็จ');
+    if (!state.cancelled) showError(error?.message || 'แปลงไฟล์ไม่สำเร็จ');
+    else statusText.textContent = 'ยกเลิกงานแล้ว';
   } finally {
     await cleanupWorker();
     setBusy(false);
   }
+});
+
+cancelOcrButton?.addEventListener('click', async () => {
+  state.cancelled = true;
+  statusText.textContent = 'กำลังหยุด OCR และคืนหน่วยความจำ…';
+  cancelOcrButton.disabled = true;
+  await cleanupWorker();
+});
+
+pauseOcrButton?.addEventListener('click', () => {
+  state.paused = !state.paused;
+  pauseOcrButton.textContent = state.paused ? 'ทำงานต่อ' : 'พักหลังหน้าปัจจุบัน';
+  if (!state.paused) state.resumeWaiters.splice(0).forEach(resolve => resolve());
 });
 
 results.addEventListener('input', event => {

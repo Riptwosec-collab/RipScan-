@@ -106,6 +106,8 @@ function patchTesseractWorkers() {
     const startedAt = performance.now();
     const wrappedOptions = {
       ...options,
+      workerPath: options?.workerPath || window.__ripscanOcrRuntime?.workerPath,
+      corePath: options?.corePath || window.__ripscanOcrRuntime?.corePath,
       cacheMethod: options?.cacheMethod || 'write',
       logger(message) {
         originalLogger?.(message);

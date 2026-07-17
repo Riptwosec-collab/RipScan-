@@ -21,7 +21,7 @@ test('production build wires performance pipeline table reconstruction Document 
     '/table-review-v31.css',
     '/document-studio.js',
     '/document-studio.css',
-    'ripscan-pwa-v3.1.0',
+    'ripscan-pwa-v3.3.1',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 

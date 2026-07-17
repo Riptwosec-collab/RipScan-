@@ -3,6 +3,35 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
 await cp('web', 'dist', { recursive: true });
+await mkdir('dist/vendor', { recursive: true });
+for (const [source, destination] of [
+  ['node_modules/tesseract.js/dist/tesseract.min.js', 'tesseract.min.js'],
+  ['node_modules/tesseract.js/dist/worker.min.js', 'worker.min.js'],
+  ['node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js', 'tesseract-core-lstm.wasm.js'],
+  ['node_modules/jszip/dist/jszip.min.js', 'jszip.min.js'],
+  ['node_modules/pdfjs-dist/build/pdf.min.mjs', 'pdf.min.mjs'],
+  ['node_modules/pdfjs-dist/build/pdf.worker.min.mjs', 'pdf.worker.min.mjs'],
+  ['node_modules/@e965/xlsx/dist/xlsx.full.min.js', 'xlsx.full.min.js'],
+  ['node_modules/html2canvas/dist/html2canvas.min.js', 'html2canvas.min.js'],
+  ['node_modules/jspdf/dist/jspdf.umd.min.js', 'jspdf.umd.min.js'],
+]) await cp(source, `dist/vendor/${destination}`);
+
+const vendorReplacements = new Map([
+  ['https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js', '/vendor/tesseract.min.js'],
+  ['https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js', '/vendor/worker.min.js'],
+  ['https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0/tesseract-core-lstm.wasm.js', '/vendor/tesseract-core-lstm.wasm.js'],
+  ['https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', '/vendor/jszip.min.js'],
+  ['https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs', '/vendor/pdf.min.mjs'],
+  ['https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs', '/vendor/pdf.worker.min.mjs'],
+  ['https://cdn.jsdelivr.net/npm/@e965/xlsx@0.20.3/dist/xlsx.full.min.js', '/vendor/xlsx.full.min.js'],
+  ['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', '/vendor/html2canvas.min.js'],
+  ['https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js', '/vendor/jspdf.umd.min.js'],
+]);
+for (const path of ['dist/index.html', 'dist/app.js', 'dist/document-studio.js', 'dist/editor-export.mjs']) {
+  let source = await readFile(path, 'utf8');
+  for (const [remote, local] of vendorReplacements) source = source.replaceAll(remote, local);
+  await writeFile(path, source, 'utf8');
+}
 
 const browserModulePath = 'dist/book-ocr-browser.mjs';
 const browserModule = await readFile(browserModulePath, 'utf8');
@@ -43,6 +72,7 @@ for (const [after, asset] of [
   ['/performance-v22.css', '/table-auto.css'],
   ['/table-auto.css', '/document-studio.css'],
   ['/document-studio.css', '/table-review-v31.css'],
+  ['/table-review-v31.css', '/quality-center.css'],
 ]) {
   if (!indexHtml.includes(`href="${asset}"`)) {
     indexHtml = indexHtml.replace(
@@ -64,7 +94,9 @@ const scripts = [
   '/performance-v22-ui.js',
   '/table-auto-ui.js',
   '/document-studio.js',
+  '/project-workspace.js',
   '/table-review-v31.js',
+  '/quality-center.js',
 ];
 for (const script of scripts) {
   if (!indexHtml.includes(`src="${script}"`)) {
@@ -101,7 +133,8 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.0');
+for (const [remote, local] of vendorReplacements) serviceWorker = serviceWorker.replaceAll(remote, local);
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.3.1');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -137,6 +170,21 @@ const assets = [
   '/office-import.mjs',
   '/editor-export.mjs',
   '/document-studio.js',
+  '/quality-core.mjs',
+  '/quality-center.js',
+  '/quality-center.css',
+  '/project-core.mjs',
+  '/project-workspace.js',
+  '/fonts/NotoSansThai.ttf',
+  '/vendor/tesseract.min.js',
+  '/vendor/worker.min.js',
+  '/vendor/tesseract-core-lstm.wasm.js',
+  '/vendor/jszip.min.js',
+  '/vendor/pdf.min.mjs',
+  '/vendor/pdf.worker.min.mjs',
+  '/vendor/xlsx.full.min.js',
+  '/vendor/html2canvas.min.js',
+  '/vendor/jspdf.umd.min.js',
 ];
 for (const asset of assets) {
   if (!serviceWorker.includes(`'${asset}'`)) {
@@ -145,4 +193,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan static site built with Table-first Reconstruction v3.1, editable Cell Review, Manual Grid Correction, Document Reconstruction Studio v3, Office import adapters, WYSIWYG page editor, PDF/JPG/PNG resize export, OCR Worker Queue, Cover Image Hard Block, and Broken Sara Am recovery');
+console.log('RipScan 3.3.1 production bundle built with same-origin runtime dependencies, Table-first Reconstruction v3.1, and Document Reconstruction Studio');

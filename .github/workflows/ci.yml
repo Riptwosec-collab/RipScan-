@@ -50,7 +50,43 @@ jobs:
           retention-days: 3
 
       - name: Syntax check
-        run: npm run check
+        run: npm run check && npm run check:projects
 
       - name: Static build
         run: node build.mjs
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run backend tests
+        run: python -m pytest -q
+      - name: Compile Python source
+        run: python -m compileall -q app tests
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container
+        run: docker build -t ripscan-ci .
+      - name: Smoke test container
+        run: |
+          docker run -d --rm --name ripscan-ci -p 8000:8000 ripscan-ci
+          for attempt in {1..20}; do
+            curl --fail http://localhost:8000/api/health && break
+            sleep 1
+          done
+          curl --fail http://localhost:8000/
+          curl --fail http://localhost:8000/app.js
+          curl --fail http://localhost:8000/ | grep -q '/quality-center.js'
+          curl --fail http://localhost:8000/ | grep -q '/project-workspace.js'
+          curl --fail http://localhost:8000/ | grep -q '/document-studio.js'

@@ -95,7 +95,7 @@ test('book-cover CSS is responsive and review focused', async () => {
 
 test('PWA shell includes compact heading book OCR and automatic table assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v2.3.0'));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v3.3.1'));
   for (const asset of [
     "'/redesign.css'", "'/compact-home.css'", "'/book-ocr.css'", "'/theme-ui.js'",
     "'/verified-ui-fix.js'", "'/heading-auto.js'", "'/heading-structure.mjs'",
