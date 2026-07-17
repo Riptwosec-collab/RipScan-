@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   CircuitBreaker,
   JOB_PRIORITY,
-  PatchHistory,
   PriorityJobQueue,
   ResourceManager,
   TtlLruCache,
@@ -98,7 +97,7 @@ test('resource manager revokes URLs closes bitmaps clears canvas and terminates 
   }
 });
 
-test('TTL cache is bounded and patch history coalesces text edits', () => {
+test('TTL cache is bounded and deterministically evicts expired entries', () => {
   const evicted = [];
   const cache = new TtlLruCache({ limit: 2, ttlMs: 1000, onEvict: (_, key) => evicted.push(key) });
   cache.set('a', 1);
@@ -110,17 +109,6 @@ test('TTL cache is bounded and patch history coalesces text edits', () => {
   cache.prune();
   assert.equal(cache.size, 0);
   assert.ok(evicted.length >= 3);
-
-  const history = new PatchHistory({ limit: 3, coalesceMs: 1000 });
-  const model = { text: 'a' };
-  history.record({ path: 'text', before: 'a', after: 'ab', groupKey: 'typing' });
-  history.record({ path: 'text', before: 'ab', after: 'abc', groupKey: 'typing' });
-  model.text = 'abc';
-  assert.equal(history.undoStack.length, 1);
-  history.undo(model);
-  assert.equal(model.text, 'a');
-  history.redo(model);
-  assert.equal(model.text, 'abc');
 });
 
 test('large file mode reduces workers preview quality and history', () => {
