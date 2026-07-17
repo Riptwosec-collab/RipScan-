@@ -115,6 +115,7 @@ test('TTL cache is bounded and patch history coalesces text edits', () => {
   const model = { text: 'a' };
   history.record({ path: 'text', before: 'a', after: 'ab', groupKey: 'typing' });
   history.record({ path: 'text', before: 'ab', after: 'abc', groupKey: 'typing' });
+  model.text = 'abc';
   assert.equal(history.undoStack.length, 1);
   history.undo(model);
   assert.equal(model.text, 'a');
