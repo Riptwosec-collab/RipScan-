@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 function replaceRequired(source, search, replacement, label) {
+  source = source.replace(/\r\n/g, '\n');
   const result = source.replace(search, replacement);
   if (result === source) throw new Error(`PDF performance patch failed: ${label}`);
   return result;

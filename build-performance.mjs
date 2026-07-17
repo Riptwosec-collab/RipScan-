@@ -1,16 +1,24 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 function replaceRequired(source, search, replacement, label) {
-  const result = source.replace(search, replacement);
-  if (result === source) throw new Error(`Performance build patch failed: ${label}`);
-  return result;
+  // Source files are copied from Windows working trees, so normalize line
+  // endings before applying literal build transforms.
+  source = source.replace(/\r\n/g, '\n');
+  for (const candidate of Array.isArray(search) ? search : [search]) {
+    const result = source.replace(candidate, replacement);
+    if (result !== source) return result;
+  }
+  throw new Error(`Performance build patch failed: ${label}`);
 }
 
 const appPath = 'dist/app.js';
 let app = await readFile(appPath, 'utf8');
 app = replaceRequired(
   app,
-  "import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';\n\npdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';",
+  [
+    "import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';\n\npdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';",
+    "import * as pdfjsLib from '/vendor/pdf.min.mjs';\n\npdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.mjs';",
+  ],
   [
     'let pdfjsLibPromise;',
     'async function ensurePdfJs() {',

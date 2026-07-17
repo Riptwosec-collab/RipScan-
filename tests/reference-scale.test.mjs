@@ -23,6 +23,6 @@ test('reference scale performance table Studio and PDF Tool assets are injected 
   assert.ok(build.includes('/document-studio.js'));
   assert.ok(build.includes('/table-review-v31.css'));
   assert.ok(build.includes('/table-review-v31.js'));
-  assert.ok(build.includes('ripscan-pwa-v3.3.1'));
+  assert.ok(build.includes('ripscan-pwa-v4.0.1'));
   assert.ok(build.includes('Table-first Reconstruction v3.1'));
 });

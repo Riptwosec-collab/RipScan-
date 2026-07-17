@@ -89,8 +89,20 @@ document.addEventListener('click', event => {
   if (event.target.closest('#convertCenterButton,[data-studio-action="convert"]')) queueMicrotask(refreshRoundTripSource);
 }, true);
 document.documentElement.dataset.pdfToolsVersion = VERSION;`;
-if (!pdfToolsUi.includes(unsafeObserver)) throw new Error('PDF Tools observer runtime guard could not be applied');
-pdfToolsUi = pdfToolsUi.replace(unsafeObserver, safeObserver);
+// The source may use CRLF (or already contain the guarded implementation from
+// a previous production merge).  Keep this build transform repeatable so a
+// safe source never fails a release merely because there is nothing left to
+// replace.
+if (pdfToolsUi.includes(unsafeObserver)) {
+  pdfToolsUi = pdfToolsUi.replace(unsafeObserver, safeObserver);
+} else {
+  const unsafeObserverPattern = /const observer = new MutationObserver\(\(\) => \{\r?\n  ensureUi\(\);\r?\n  installAnnotationTools\(\);\r?\n  refreshRoundTripSource\(\);\r?\n\}\);\r?\nobserver\.observe\(document\.documentElement, \{ childList: true, subtree: true \}\);\r?\nensureUi\(\);\r?\ninstallAnnotationTools\(\);\r?\ndocument\.documentElement\.dataset\.pdfToolsVersion = VERSION;/;
+  if (unsafeObserverPattern.test(pdfToolsUi)) {
+    pdfToolsUi = pdfToolsUi.replace(unsafeObserverPattern, safeObserver);
+  } else if (!pdfToolsUi.includes('function initializePdfTools()')) {
+    throw new Error('PDF Tools observer runtime guard could not be applied');
+  }
+}
 await writeFile(pdfToolsUiPath, pdfToolsUi, 'utf8');
 
 const indexPath = 'dist/index.html';
@@ -166,7 +178,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
 for (const [remote, local] of vendorReplacements) serviceWorker = serviceWorker.replaceAll(remote, local);
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.3.1');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.0.1');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -203,6 +215,13 @@ const assets = [
   '/office-import.mjs',
   '/editor-export.mjs',
   '/document-studio.js',
+  '/pdf-utility-core.mjs',
+  '/pdf-page-organizer.mjs',
+  '/pdf-worker.js',
+  '/pdf-tool-runtime.mjs',
+  '/ripscan-project.mjs',
+  '/roundtrip-export.mjs',
+  '/pdf-tools-ui.js',
   '/quality-core.mjs',
   '/quality-center.js',
   '/quality-center.css',
@@ -226,4 +245,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan 3.3.1 production bundle built with same-origin runtime dependencies, Table-first Reconstruction v3.1, and Document Reconstruction Studio');
+console.log('RipScan PDF Tools v4.0.1 runtime guard, same-origin OCR runtime dependencies, Table-first Reconstruction v3.1, and Document Reconstruction Studio production bundle built');

@@ -1,4 +1,4 @@
-export const DOCUMENT_MODEL_VERSION = '3.3.0';
+export const DOCUMENT_MODEL_VERSION = '4.0.0';
 export const FORM_BLOCK_TYPES = Object.freeze(['field', 'checkbox', 'radio', 'signature', 'stamp', 'barcode', 'qr', 'label', 'value']);
 
 let sequence = 0;

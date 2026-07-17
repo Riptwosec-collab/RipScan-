@@ -1,9 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 function replaceRequired(source, search, replacement, label) {
-  const result = source.replace(search, replacement);
-  if (result === source) throw new Error(`Studio performance patch failed: ${label}`);
-  return result;
+  source = source.replace(/\r\n/g, '\n');
+  for (const candidate of Array.isArray(search) ? search : [search]) {
+    const result = source.replace(candidate, replacement);
+    if (result !== source) return result;
+  }
+  throw new Error(`Studio performance patch failed: ${label}`);
 }
 
 const path = 'dist/document-studio.js';
@@ -79,17 +82,7 @@ source = replaceRequired(
 );
 source = replaceRequired(
   source,
-  [
-    "    const before = JSON.stringify(state.editingSnapshot);",
-    "    const after = JSON.stringify(state.model);",
-    "    if (before !== after) {",
-    "      state.history.push({ label: 'แก้ข้อความ', model: state.editingSnapshot, activePage: state.activePage, selectedBlockId: state.selectedBlockId });",
-    "      if (state.history.length > MAX_HISTORY) state.history.shift();",
-    "      state.future = [];",
-    "      state.dirty = true;",
-    "      updateHistoryButtons();",
-    "    }",
-  ].join('\n'),
+  /    const before = JSON\.stringify\(state\.editingSnapshot\);\n    const after = JSON\.stringify\(state\.model\);\n    if \(before !== after\) \{\n      state\.history\.push\(\{ label: 'แก้ข้อความ', model: state\.editingSnapshot, activePage: state\.activePage, selectedBlockId: state\.selectedBlockId \}\);\n      if \(state\.history\.length > MAX_HISTORY\) state\.history\.shift\(\);\n      state\.future = \[\];\n      state\.dirty = true;\n      updateHistoryButtons\(\);\n(?:      scheduleAutosave\(\);\n)?    \}/,
   [
     '    const before = JSON.stringify(state.editingSnapshot.page);',
     '    const after = JSON.stringify(currentPage());',
@@ -98,6 +91,7 @@ source = replaceRequired(
     '      state.future = [];',
     '      state.dirty = true;',
     '      updateHistoryButtons();',
+    '      scheduleAutosave();',
     '    }',
   ].join('\n'),
   'editing history comparison',
@@ -105,7 +99,10 @@ source = replaceRequired(
 
 source = replaceRequired(
   source,
-  "  const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');\n  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';",
+  [
+    "  const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');\n  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';",
+    "  const pdfjs = await import('/vendor/pdf.min.mjs');\n  pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.mjs';",
+  ],
   "  const pdfjs = await import('./lazy-libraries.mjs').then(module => module.loadPdfJs());",
   'Studio lazy PDF.js',
 );

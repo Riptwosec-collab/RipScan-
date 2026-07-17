@@ -22,7 +22,7 @@ test('production build injects layout OCR table Document Studio PDF Tools and re
     '/table-review-v31.js',
     '/book-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v3.3.1',
+    'ripscan-pwa-v4.0.1',
     'cover-ocr-core.mjs',
     'cover-recovery-core.mjs',
     'cover-hard-block.mjs',
