@@ -40,6 +40,15 @@ test('precomputed worker blocks are reused instead of automatically OCRing the s
   ]) assert.ok(build.includes(required), `missing duplicate OCR prevention ${required}`);
 });
 
+test('Document Studio uses page-level history virtual thumbnails rAF drag and selected-page export', async () => {
+  const build = await read('build-performance-studio.mjs');
+  for (const required of [
+    "function captureHistory", "fullHistoryRequired", 'SAFE_HISTORY = 20',
+    'THUMBNAIL_WINDOW = 12', 'Studio progressive PDF import', 'pageLimit = safeMode ? 1 : pdf.numPages',
+    'requestAnimationFrame(paint)', 'selected export pages only', "ripscan:document-close",
+  ]) assert.ok(build.includes(required), `missing Studio performance guard ${required}`);
+});
+
 test('safe mode thresholds match the emergency specification', async () => {
   const runtime = await read('web/performance-runtime.mjs');
   for (const required of [
