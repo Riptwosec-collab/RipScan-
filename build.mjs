@@ -178,7 +178,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
 for (const [remote, local] of vendorReplacements) serviceWorker = serviceWorker.replaceAll(remote, local);
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.0.1');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v4.1.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -245,4 +245,4 @@ for (const asset of assets) {
 }
 await writeFile(serviceWorkerPath, serviceWorker, 'utf8');
 
-console.log('RipScan PDF Tools v4.0.1 runtime guard, same-origin OCR runtime dependencies, Table-first Reconstruction v3.1, and Document Reconstruction Studio production bundle built');
+console.log('RipScan PDF Tools v4.1.0 runtime guard, same-origin OCR runtime dependencies, Table-first Reconstruction v3.1, and Document Reconstruction Studio production bundle built');
