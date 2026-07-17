@@ -13,12 +13,6 @@ await writeFile(runtimePath, runtime, 'utf8');
 
 const uiPath = 'dist/pdf-tools-ui.js';
 let ui = await readFile(uiPath, 'utf8');
-ui = replaceRequired(
-  ui,
-  "    else if (state.tool === 'edit') await runEdit();",
-  "    else if (state.tool === 'edit') await runEdit();",
-  'PDF run branch anchor',
-);
 const branchBlock = [
   "    if (state.tool === 'compress') await runCompress();",
   "    else if (state.tool === 'merge' || state.tool === 'organize') await runMerge();",
