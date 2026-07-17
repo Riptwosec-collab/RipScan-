@@ -14,6 +14,19 @@ test('tool loader dynamically loads Studio PDF table and review modules', async 
   ]) assert.ok(loader.includes(required), `missing lazy tool behavior ${required}`);
 });
 
+test('hover and focus use modulepreload without executing Studio or removing launchers', async () => {
+  const loader = await read('web/tool-lazy-loader.js');
+  for (const required of [
+    "link.rel = 'modulepreload'", "button.addEventListener('pointerenter', preload",
+    "button.addEventListener('focus', preload", "preloadModule('/document-studio.js'",
+    "preloadModule('/pdf-tools-ui.js'",
+  ]) assert.ok(loader.includes(required), `missing non-executing preload guard ${required}`);
+  const loadStudioBody = loader.match(/async function loadStudio\(\) \{([\s\S]*?)\n\}/u)?.[1] || '';
+  assert.ok(loadStudioBody.includes("loadModule('studio'"));
+  assert.ok(loadStudioBody.includes('removeLazyLaunchers()'));
+  assert.ok(!loader.includes('pointerenter\', () => loadStudio'));
+});
+
 test('production lazy build removes heavy scripts styles and JSZip from initial HTML', async () => {
   const build = await read('build-performance-lazy.mjs');
   for (const required of [
