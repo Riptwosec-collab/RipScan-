@@ -20,8 +20,10 @@ test('emergency guard prevents duplicate primary actions and exposes a shared AP
   for (const required of [
     "button.dataset.jobRunning === 'true'", 'activeUiJobs.has(key)',
     'event.stopImmediatePropagation()', 'beginUiJob', 'cancelUiJob',
-    'globalThis.RipScanPerformance', 'duplicateJobsPrevented',
+    'globalThis.RipScanPerformance', 'scheduler.snapshot()',
   ]) assert.ok(source.includes(required), `missing ${required}`);
+  const runtime = await read('web/performance-runtime.mjs');
+  assert.ok(runtime.includes('duplicateJobsPrevented'));
 });
 
 test('theme UI loads the emergency guard without creating another application shell', async () => {
