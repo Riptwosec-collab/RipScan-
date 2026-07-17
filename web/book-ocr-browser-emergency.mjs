@@ -4,10 +4,10 @@ import {
   BOOK_COVER_PERFORMANCE_PIPELINE,
 } from './book-ocr-browser-performance.mjs';
 import { SharedJobScheduler, performanceConfig, shouldUseLargeFileMode } from './performance-runtime.mjs';
+import { loadTesseract } from './lazy-libraries.mjs';
 
 const localScheduler = new SharedJobScheduler(performanceConfig());
 const activeIds = new Set();
-let sequence = 0;
 
 function runtime() {
   return globalThis.RipScanPerformanceRuntime;
@@ -26,6 +26,7 @@ function jobKey(source, configuration) {
 }
 
 export async function processBookCoverCanvas(source, configuration = {}) {
+  await loadTesseract();
   const id = jobKey(source, configuration);
   const safeMode = shouldUseLargeFileMode({
     width: Number(source?.width || 0),
@@ -66,7 +67,7 @@ export async function cancelBookCoverOcr() {
   window.dispatchEvent(new CustomEvent('ripscan:ocr-cancelled'));
 }
 
-export const BOOK_COVER_EMERGENCY_PIPELINE = `${BOOK_COVER_PERFORMANCE_PIPELINE}-emergency-v4.1.${++sequence}`;
+export const BOOK_COVER_EMERGENCY_PIPELINE = `${BOOK_COVER_PERFORMANCE_PIPELINE}-emergency-v4.1`;
 
 globalThis.RipScanBookOCR = Object.freeze({
   process: processBookCoverCanvas,
