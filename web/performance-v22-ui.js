@@ -1,6 +1,6 @@
 const UI_VERSION = '2.2.0';
 const THROTTLE_MS = 160;
-const WATCHDOG_MS = 12_000;
+const WATCHDOG_MS = 10_000;
 const HARD_WATCHDOG_MS = 70_000;
 
 const state = {
