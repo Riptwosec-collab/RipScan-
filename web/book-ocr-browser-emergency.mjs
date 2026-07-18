@@ -4,10 +4,12 @@ import {
   BOOK_COVER_PERFORMANCE_PIPELINE,
 } from './book-ocr-browser-performance.mjs';
 import { SharedJobScheduler, performanceConfig, shouldUseLargeFileMode } from './performance-runtime.mjs';
+import { OCR_LIMITS } from './ocr-performance-core.mjs';
 import { loadTesseract } from './lazy-libraries.mjs';
 
 const localScheduler = new SharedJobScheduler(performanceConfig());
 const activeIds = new Set();
+const SCHEDULER_STARTUP_GRACE_MS = 3 * 60_000;
 
 function runtime() {
   return globalThis.RipScanPerformanceRuntime;
@@ -28,7 +30,26 @@ function jobKey(source, configuration) {
 function recoverableWorkerError(error) {
   const code = String(error?.code || error?.message || '');
   if (error?.name === 'AbortError' || /CANCEL/u.test(code)) return false;
-  return /JOB_TIMEOUT|OCR_TIMEOUT|PREPROCESS_TIMEOUT|WORKER|CIRCUIT|CRASH/u.test(code);
+  // JOB_TIMEOUT means the complete page budget has already been used. Retrying
+  // the whole page would only double the wait, so only restart for worker-level
+  // failures that can realistically recover on a fresh worker.
+  return /OCR_TIMEOUT|PREPROCESS_TIMEOUT|WORKER|CIRCUIT|CRASH/u.test(code);
+}
+
+function publicOcrError(error) {
+  const code = String(error?.code || error?.message || 'OCR_WORKER_FAILED');
+  const messages = [
+    [/JOB_TIMEOUT|OCR_TIMEOUT/u, 'การอ่านข้อความหน้านี้ใช้เวลานานเกินกำหนด ระบบหยุดงานเพื่อไม่ให้ค้าง กรุณาลองลดความละเอียดของภาพหรือแบ่งเอกสารเป็นหน้าละไฟล์'],
+    [/PREPROCESS_TIMEOUT/u, 'การเตรียมภาพใช้เวลานานเกินกำหนด กรุณาลองใช้ภาพ JPG/PNG ที่มีขนาดเล็กลง'],
+    [/CIRCUIT/u, 'OCR Worker ผิดพลาดซ้ำหลายครั้ง ระบบพักการทำงานชั่วคราว กรุณารอสักครู่แล้วลองใหม่'],
+    [/WORKER|CRASH/u, 'OCR Worker เริ่มทำงานไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองใหม่อีกครั้ง'],
+  ];
+  const match = messages.find(([pattern]) => pattern.test(code));
+  if (!match) return error;
+  const mapped = new Error(match[1]);
+  mapped.code = code;
+  mapped.cause = error;
+  return mapped;
 }
 
 function recoveryProgress(configuration, attempt, error) {
@@ -53,6 +74,7 @@ export async function processBookCoverCanvas(source, configuration = {}) {
   });
   if (safeMode) runtime()?.enterSafeMode?.('ocr_page_safe_mode', { page: Number(configuration.pageNumber || 1) });
   const priority = configuration.visible === false ? 5 : configuration.retry === true ? 2 : 1;
+  const schedulerTimeoutMs = OCR_LIMITS.pageTimeoutMs + SCHEDULER_STARTUP_GRACE_MS;
   window.dispatchEvent(new CustomEvent('ripscan:job-start', { detail: { id, type: 'ocr', page: configuration.pageNumber || 1 } }));
   let lastError = null;
   try {
@@ -78,7 +100,7 @@ export async function processBookCoverCanvas(source, configuration = {}) {
           id: attemptId,
           priority,
           signal: configuration.signal,
-          timeoutMs: 65_000,
+          timeoutMs: schedulerTimeoutMs,
         });
       } catch (error) {
         lastError = error;
@@ -91,6 +113,8 @@ export async function processBookCoverCanvas(source, configuration = {}) {
       }
     }
     throw lastError || new Error('OCR_WORKER_FAILED');
+  } catch (error) {
+    throw publicOcrError(error);
   } finally {
     window.dispatchEvent(new CustomEvent('ripscan:job-end', { detail: { id, type: 'ocr' } }));
   }
@@ -103,7 +127,7 @@ export async function cancelBookCoverOcr() {
   window.dispatchEvent(new CustomEvent('ripscan:ocr-cancelled'));
 }
 
-export const BOOK_COVER_EMERGENCY_PIPELINE = `${BOOK_COVER_PERFORMANCE_PIPELINE}-emergency-v4.1`;
+export const BOOK_COVER_EMERGENCY_PIPELINE = `${BOOK_COVER_PERFORMANCE_PIPELINE}-emergency-v4.2`;
 
 globalThis.RipScanBookOCR = Object.freeze({
   process: processBookCoverCanvas,
