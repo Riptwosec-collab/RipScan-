@@ -33,15 +33,21 @@ jobs:
           pathlib.Path('/tmp/apply-fix.mjs').write_bytes(gzip.decompress(base64.b64decode(match.group(1))))
           PY
           node /tmp/apply-fix.mjs .
-      - run: npm test
-      - run: npm run check
-      - run: npm run build
-      - name: Commit verified fix
+      - name: Commit applied fix
         shell: bash
         run: |
           git config user.name 'ChatGPT Automation'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add web tests package.json
-          if git diff --cached --quiet; then exit 0; fi
+          if git diff --cached --quiet; then
+            echo 'Patch is already applied'
+            exit 0
+          fi
           git commit -m 'Fix OCR processing stall and worker recovery'
           git push origin HEAD:${{ github.head_ref }}
+      - name: Run tests
+        run: npm test
+      - name: Run checks
+        run: npm run check
+      - name: Run build
+        run: npm run build
