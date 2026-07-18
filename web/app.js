@@ -927,7 +927,8 @@ cancelOcrButton?.addEventListener('click', async () => {
   state.cancelled = true;
   statusText.textContent = 'กำลังหยุด OCR และคืนหน่วยความจำ…';
   cancelOcrButton.disabled = true;
-  await cleanupWorker();
+  await window.RipScanLegacyOCR?.cancel?.();
+  cancelOcrButton.disabled = false;
 });
 
 pauseOcrButton?.addEventListener('click', () => {

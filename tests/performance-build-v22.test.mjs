@@ -44,11 +44,15 @@ test('performance browser pipeline limits work and retries only regions', async 
   assert.ok(!browser.includes('Upscale 6x'));
 });
 
-test('progress UI throttles updates and provides watchdog and cancel', async () => {
+test('progress UI throttles updates and provides watchdog and bounded cancel', async () => {
   const ui = await read('web/performance-v22-ui.js');
   assert.ok(ui.includes('THROTTLE_MS = 160'));
   assert.ok(ui.includes('WATCHDOG_MS = 10_000'));
+  assert.ok(ui.includes('HARD_WATCHDOG_MS = 70_000'));
+  assert.ok(ui.includes('WORKER_START_TIMEOUT_MS = 45_000'));
+  assert.ok(ui.includes('RECOGNIZE_TIMEOUT_MS = 60_000'));
   assert.ok(ui.includes('ยกเลิกการประมวลผล'));
   assert.ok(ui.includes('Promise.race'));
-  assert.ok(ui.includes('1_900'));
+  assert.match(ui, /setTimeout\(resolve,\s*(?:1_900|3_000)\)/u);
+  assert.ok(ui.includes("cancelProcessing('timeout')"));
 });
