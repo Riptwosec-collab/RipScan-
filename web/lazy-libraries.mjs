@@ -7,6 +7,26 @@ const sources = Object.freeze({
 
 const pending = new Map();
 
+function configureTesseract(tesseract) {
+  if (!tesseract?.createWorker || tesseract.createWorker.__ripscanLocalRuntime === true) return tesseract;
+  const originalCreateWorker = tesseract.createWorker.bind(tesseract);
+  const localCreateWorker = (...arguments_) => {
+    const options = {
+      ...(arguments_[2] || {}),
+      workerPath: '/vendor/worker.min.js',
+      corePath: '/vendor/tesseract-core',
+      langPath: '/vendor/tessdata',
+      gzip: true,
+      workerBlobURL: false,
+    };
+    arguments_[2] = options;
+    return originalCreateWorker(...arguments_);
+  };
+  Object.defineProperty(localCreateWorker, '__ripscanLocalRuntime', { value: true });
+  tesseract.createWorker = localCreateWorker;
+  return tesseract;
+}
+
 function loadScript(key, urls, ready) {
   if (ready()) return Promise.resolve(ready());
   if (pending.has(key)) return pending.get(key);
@@ -45,7 +65,8 @@ function loadScript(key, urls, ready) {
 }
 
 export function loadTesseract() {
-  return loadScript('tesseract', sources.tesseract, () => globalThis.Tesseract);
+  if (globalThis.Tesseract?.createWorker) return Promise.resolve(configureTesseract(globalThis.Tesseract));
+  return loadScript('tesseract', sources.tesseract, () => globalThis.Tesseract).then(configureTesseract);
 }
 
 export function loadJsZip() {
