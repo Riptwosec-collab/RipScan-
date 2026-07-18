@@ -1,31 +1,45 @@
 const sources = Object.freeze({
-  tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js',
+  tesseract: ['/vendor/tesseract.min.js', 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js'],
   pdfjs: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',
   pdfWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs',
-  jszip: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  jszip: ['/vendor/jszip.min.js', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'],
 });
 
 const pending = new Map();
 
-function loadScript(key, url, ready) {
+function loadScript(key, urls, ready) {
   if (ready()) return Promise.resolve(ready());
   if (pending.has(key)) return pending.get(key);
-  const promise = new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[data-ripscan-library="${key}"]`);
-    const script = existing || document.createElement('script');
-    const complete = () => ready() ? resolve(ready()) : reject(new Error(`LIBRARY_NOT_READY:${key}`));
-    if (!existing) {
-      script.src = url;
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      script.dataset.ripscanLibrary = key;
-      document.head.append(script);
+  const candidates = Array.isArray(urls) ? urls : [urls];
+  const promise = (async () => {
+    let lastError = null;
+    for (const url of candidates) {
+      try {
+        await new Promise((resolve, reject) => {
+          const selector = `script[data-ripscan-library="${key}"][data-ripscan-source="${url}"]`;
+          const existing = document.querySelector(selector);
+          const script = existing || document.createElement('script');
+          const complete = () => ready() ? resolve() : reject(new Error(`LIBRARY_NOT_READY:${key}`));
+          if (!existing) {
+            script.src = url;
+            script.async = true;
+            script.crossOrigin = 'anonymous';
+            script.dataset.ripscanLibrary = key;
+            script.dataset.ripscanSource = url;
+            document.head.append(script);
+          }
+          script.addEventListener('load', complete, { once: true });
+          script.addEventListener('error', () => reject(new Error(`LIBRARY_LOAD_FAILED:${key}:${url}`)), { once: true });
+          if (existing?.dataset.loaded === 'true') complete();
+          script.addEventListener('load', () => { script.dataset.loaded = 'true'; }, { once: true });
+        });
+        if (ready()) return ready();
+      } catch (error) {
+        lastError = error;
+      }
     }
-    script.addEventListener('load', complete, { once: true });
-    script.addEventListener('error', () => reject(new Error(`LIBRARY_LOAD_FAILED:${key}`)), { once: true });
-    if (existing?.dataset.loaded === 'true') complete();
-    script.addEventListener('load', () => { script.dataset.loaded = 'true'; }, { once: true });
-  }).finally(() => pending.delete(key));
+    throw lastError || new Error(`LIBRARY_LOAD_FAILED:${key}`);
+  })().finally(() => pending.delete(key));
   pending.set(key, promise);
   return promise;
 }
