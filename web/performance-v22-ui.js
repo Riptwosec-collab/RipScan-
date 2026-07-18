@@ -1,6 +1,7 @@
 const UI_VERSION = '2.2.0';
 const THROTTLE_MS = 160;
-const WATCHDOG_MS = 10_000;
+const WATCHDOG_MS = 12_000;
+const HARD_WATCHDOG_MS = 70_000;
 
 const state = {
   lastProgressAt: 0,
@@ -9,6 +10,8 @@ const state = {
   watchdog: null,
   busy: false,
   cancelledAt: 0,
+  watchdogWarned: false,
+  hardWatchdogWarned: false,
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -90,6 +93,8 @@ function render(detail) {
 function scheduleRender(detail) {
   state.latest = detail;
   state.lastProgressAt = performance.now();
+  state.watchdogWarned = false;
+  state.hardWatchdogWarned = false;
   if (state.timer) return;
   state.timer = setTimeout(() => {
     state.timer = null;
@@ -128,15 +133,35 @@ function startWatchdog() {
     if (idle < WATCHDOG_MS) return;
     const title = $('#ocrProgressTitle');
     const detail = $('#ocrProgressDetail');
-    if (title) title.textContent = 'กำลังประมวลผลข้อความขนาดเล็ก';
-    if (detail) detail.textContent = 'Worker ยังทำงานอยู่ · สามารถยกเลิกได้';
-    window.dispatchEvent(new CustomEvent('ripscan:ocr-watchdog', { detail: { idleMs: idle } }));
+    if (!state.watchdogWarned) {
+      state.watchdogWarned = true;
+      if (title) title.textContent = 'กำลังรอการตอบกลับจาก OCR Worker';
+      if (detail) detail.textContent = 'ระบบยังไม่หยุดงาน · กำลังตรวจสถานะ Worker';
+      window.dispatchEvent(new CustomEvent('ripscan:ocr-watchdog', { detail: { idleMs: idle, level: 'warning' } }));
+    }
+    if (idle >= HARD_WATCHDOG_MS && !state.hardWatchdogWarned) {
+      state.hardWatchdogWarned = true;
+      if (title) title.textContent = 'Worker ใช้เวลานานผิดปกติ';
+      if (detail) detail.textContent = 'ระบบ Timeout และเริ่ม Worker ใหม่ได้สูงสุด 1 ครั้ง';
+      window.dispatchEvent(new CustomEvent('ripscan:ocr-watchdog', { detail: { idleMs: idle, level: 'timeout' } }));
+    }
   }, 2_000);
 }
 
 window.addEventListener('ripscan:ocr-progress', event => scheduleRender(event.detail || {}));
 window.addEventListener('ripscan:ocr-cancelled', () => {
   scheduleRender({ status: 'cancelled', stage: 'cancelled', progress: 0, label: 'ยกเลิกการประมวลผลแล้ว' });
+  setBusy(false);
+});
+window.addEventListener('ripscan:job-start', event => {
+  if (!['legacy-ocr', 'ocr'].includes(String(event.detail?.type || ''))) return;
+  state.lastProgressAt = performance.now();
+  state.watchdogWarned = false;
+  state.hardWatchdogWarned = false;
+  setBusy(true);
+});
+window.addEventListener('ripscan:job-end', event => {
+  if (String(event.detail?.type || '') !== 'legacy-ocr') return;
   setBusy(false);
 });
 window.addEventListener('beforeunload', () => {

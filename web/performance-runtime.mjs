@@ -161,8 +161,10 @@ export class SharedJobScheduler {
       }
       this.active[type] += 1;
       item.state = 'running';
-      const execute = () => item.task({ signal: item.controller.signal, id: item.id });
-      const running = item.timeoutMs > 0 ? withTimeout(execute, item.timeoutMs, item.controller.signal) : Promise.resolve().then(execute);
+      const execute = timeoutSignal => item.task({ signal: timeoutSignal || item.controller.signal, id: item.id });
+      const running = item.timeoutMs > 0
+        ? withTimeout(execute, item.timeoutMs, item.controller.signal)
+        : Promise.resolve().then(() => execute(item.controller.signal));
       running.then(value => {
         item.state = 'completed';
         item.resolve(value);
@@ -239,13 +241,35 @@ export class JobCache {
 
 export function withTimeout(promiseFactory, ms, signal) {
   const controller = new AbortController();
-  const abort = () => controller.abort(signal?.reason);
+  let timer = null;
+  let settled = false;
+  let rejectAbort = null;
+
+  const abort = () => {
+    if (settled) return;
+    controller.abort(signal?.reason || 'JOB_CANCELLED');
+    rejectAbort?.(abortError(String(signal?.reason || 'JOB_CANCELLED')));
+  };
+
   signal?.addEventListener('abort', abort, { once: true });
-  let timer;
+  const abortPromise = new Promise((_, reject) => { rejectAbort = reject; });
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      if (settled) return;
+      controller.abort('JOB_TIMEOUT');
+      reject(new Error('JOB_TIMEOUT'));
+    }, Math.max(1, ms));
+  });
+
   return Promise.race([
     Promise.resolve().then(() => promiseFactory(controller.signal)),
-    new Promise((_, reject) => { timer = setTimeout(() => { controller.abort('JOB_TIMEOUT'); reject(new Error('JOB_TIMEOUT')); }, Math.max(1, ms)); }),
-  ]).finally(() => { clearTimeout(timer); signal?.removeEventListener('abort', abort); });
+    timeoutPromise,
+    abortPromise,
+  ]).finally(() => {
+    settled = true;
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  });
 }
 
 export async function yieldToBrowser() {
