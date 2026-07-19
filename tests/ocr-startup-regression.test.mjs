@@ -15,3 +15,16 @@ test('initial page defers OCR and ZIP scripts until they are requested', async (
   assert.doesNotMatch(advanced, /function patchTesseractWorkers/u);
   assert.match(upgrade, /import \{ loadJsZip, loadTesseract \} from '\.\/lazy-libraries\.mjs';/u);
 });
+
+test('all on-demand OCR tools use the shared cancellable runtime', async () => {
+  const paths = [
+    'web/book-ocr-browser.mjs', 'web/book-ocr-browser-recovery.mjs',
+    'web/book-ocr-browser-hard-block.mjs', 'web/book-ocr-browser-performance.mjs',
+    'web/book-ocr-ui.js', 'web/cover-ocr-ui.js', 'web/table-review-v31.js', 'web/table-review-v312.js',
+  ];
+  const sources = await Promise.all(paths.map(read));
+  for (const source of sources) {
+    assert.match(source, /loadTesseract/u);
+    assert.doesNotMatch(source, /(?:window|globalThis)\.Tesseract\.createWorker/u);
+  }
+});

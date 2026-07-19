@@ -11,8 +11,8 @@ const OCR_RUNTIME = Object.freeze({
   workerPath: '/vendor/worker.min.js',
   corePath: '/vendor/tesseract-core',
   langPath: '/vendor/tessdata',
-  workerStartTimeoutMs: 90_000,
-  recognizeTimeoutMs: 90_000,
+  workerStartTimeoutMs: 30_000,
+  recognizeTimeoutMs: 60_000,
   heartbeatMs: 4_000,
 });
 
@@ -36,6 +36,38 @@ function runtimeError(code, message) {
   const error = new Error(message || code);
   error.code = code;
   return error;
+}
+
+function abortError() {
+  const error = new DOMException('OCR_CANCELLED', 'AbortError');
+  error.code = 'OCR_CANCELLED';
+  return error;
+}
+
+function withAbortSignal(factory, signal) {
+  if (!signal) return factory();
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', onAbort);
+      callback(value);
+    };
+    const onAbort = () => finish(reject, abortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve().then(factory).then(
+      worker => {
+        if (settled) {
+          Promise.resolve(worker?.terminate?.()).catch(() => undefined);
+          return;
+        }
+        finish(resolve, worker);
+      },
+      error => finish(reject, error),
+    );
+  });
 }
 
 function withRuntimeDeadline(factory, { timeoutMs, code, stage, label, onTimeout } = {}) {
@@ -85,6 +117,8 @@ function configureTesseract(tesseract) {
   const originalCreateWorker = tesseract.createWorker.bind(tesseract);
   const localCreateWorker = async (...arguments_) => {
     const requestedOptions = { ...(arguments_[2] || {}) };
+    const signal = requestedOptions.signal;
+    delete requestedOptions.signal;
     const originalLogger = requestedOptions.logger;
     let lastError = null;
 
@@ -111,7 +145,7 @@ function configureTesseract(tesseract) {
       try {
         if (attempt > 0) emitOcrHeartbeat('worker_retry', 'กำลังเริ่ม OCR Worker ใหม่ด้วย Cache ชุดใหม่ 1/1', { retry: 1 });
         const worker = await withRuntimeDeadline(
-          () => originalCreateWorker(...workerArguments),
+          () => withAbortSignal(() => originalCreateWorker(...workerArguments), signal),
           {
             timeoutMs: OCR_RUNTIME.workerStartTimeoutMs,
             code: 'OCR_WORKER_START_TIMEOUT',
@@ -136,9 +170,10 @@ function configureTesseract(tesseract) {
 function loadScript(key, urls, ready) {
   if (ready()) return Promise.resolve(ready());
   if (pending.has(key)) return pending.get(key);
+  let script;
   const promise = waitForLibrary(new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[data-ripscan-library="${key}"]`);
-    const script = existing || document.createElement('script');
+    script = existing || document.createElement('script');
     const complete = () => ready() ? resolve(ready()) : reject(new Error(`LIBRARY_NOT_READY:${key}`));
     if (!existing) {
       script.src = Array.isArray(urls) ? urls[0] : urls;
@@ -151,7 +186,10 @@ function loadScript(key, urls, ready) {
     script.addEventListener('error', () => reject(new Error(`LIBRARY_LOAD_FAILED:${key}`)), { once: true });
     if (existing?.dataset.loaded === 'true') complete();
     script.addEventListener('load', () => { script.dataset.loaded = 'true'; }, { once: true });
-  }), key).finally(() => pending.delete(key));
+  }), key).catch(error => {
+    script?.remove();
+    throw error;
+  }).finally(() => pending.delete(key));
   pending.set(key, promise);
   return promise;
 }

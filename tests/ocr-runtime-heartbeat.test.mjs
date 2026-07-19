@@ -10,8 +10,8 @@ test('local Tesseract runtime has bounded startup retry and activity heartbeat',
     "workerPath: '/vendor/worker.min.js'",
     "corePath: '/vendor/tesseract-core'",
     "langPath: '/vendor/tessdata'",
-    'workerStartTimeoutMs: 90_000',
-    'recognizeTimeoutMs: 90_000',
+    'workerStartTimeoutMs: 30_000',
+    'recognizeTimeoutMs: 60_000',
     "new CustomEvent('ripscan:ocr-heartbeat'",
     "cacheMethod: attempt === 0 ? (requestedOptions.cacheMethod || 'write') : 'refresh'",
     "Object.defineProperty(localCreateWorker, '__ripscanStallGuard'",
@@ -33,5 +33,5 @@ test('production watchdog consumes heartbeat and keeps an absolute no-response c
   assert.match(packageJson.scripts.check, /build-ocr-runtime-recovery\.mjs/);
 
   const cache = await read('build-cache-version.mjs');
-  assert.match(cache, /ripscan-pwa-v4\.1\.3/);
+  assert.match(cache, /ripscan-pwa-v4\.1\.4/);
 });

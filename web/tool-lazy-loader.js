@@ -43,8 +43,7 @@ function loadModule(key, url, styles = []) {
 }
 
 function removeLazyLaunchers() {
-  document.querySelector('#documentStudioLazyButton')?.remove();
-  document.querySelector('#convertCenterLazyButton')?.remove();
+  document.querySelectorAll('#documentStudioLazyButton, #convertCenterLazyButton, #documentStudioButton, #convertCenterButton').forEach(element => element.remove());
 }
 
 async function loadStudio() {
@@ -75,60 +74,6 @@ async function loadCoverReview() {
     loadBookReview(),
     loadTableTools(),
   ]);
-}
-
-function makeLauncher(id, label, action, preload) {
-  const button = document.createElement('button');
-  button.id = id;
-  button.className = 'studio-entry-button';
-  button.type = 'button';
-  button.textContent = label;
-  button.addEventListener('pointerenter', preload, { once: true, passive: true });
-  button.addEventListener('focus', preload, { once: true });
-  button.addEventListener('click', async () => {
-    if (button.disabled) return;
-    button.disabled = true;
-    const original = button.textContent;
-    button.textContent = 'กำลังเปิด…';
-    try {
-      await action();
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = original;
-      console.error(error);
-      const box = document.querySelector('#error');
-      if (box) { box.hidden = false; box.textContent = error?.message || 'เปิดเครื่องมือไม่สำเร็จ'; }
-    }
-  });
-  return button;
-}
-
-function installLaunchers() {
-  const actions = document.querySelector('.header-actions');
-  if (!actions || document.querySelector('#documentStudioButton,#documentStudioLazyButton')) return;
-  const studio = makeLauncher(
-    'documentStudioLazyButton',
-    'Document Studio',
-    async () => {
-      await loadStudio();
-      document.querySelector('#documentStudioButton')?.click();
-    },
-    () => preloadModule('/document-studio.js', ['/document-studio.css']),
-  );
-  const convert = makeLauncher(
-    'convertCenterLazyButton',
-    'แปลงไฟล์',
-    async () => {
-      await loadPdfTools();
-      document.querySelector('#convertCenterButton')?.click();
-    },
-    () => {
-      preloadModule('/document-studio.js', ['/document-studio.css']);
-      preloadModule('/pdf-tools-ui.js', ['/pdf-tools.css']);
-    },
-  );
-  actions.prepend(convert);
-  actions.prepend(studio);
 }
 
 async function handleStructuredFiles(input, files) {
@@ -222,7 +167,7 @@ window.addEventListener('pagehide', () => {
   preloaded.clear();
 }, { once: true });
 
-installLaunchers();
+removeLazyLaunchers();
 installResultsObserver();
 
 globalThis.RipScanToolLoader = Object.freeze({

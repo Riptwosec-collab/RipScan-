@@ -123,7 +123,10 @@ async function ensureWorker() {
   state.progressContext = 'กำลังเตรียมภาษา OCR';
   const languages = LANGUAGE_MAP[language.value] || LANGUAGE_MAP.auto;
   const tesseract = await loadTesseract();
-  state.worker = await tesseract.createWorker(languages, 1, { logger: updateProgress });
+  state.worker = await tesseract.createWorker(languages, 1, {
+    logger: updateProgress,
+    signal: state.activeController?.signal,
+  });
   return state.worker;
 }
 

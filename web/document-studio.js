@@ -958,43 +958,7 @@ async function runConversion() {
 }
 
 function installEntryPoints() {
-  const headerActions = $('.header-actions');
-  if (headerActions && !$('#documentStudioButton')) {
-    const studioButton = document.createElement('button');
-    studioButton.id = 'documentStudioButton';
-    studioButton.className = 'studio-entry-button';
-    studioButton.type = 'button';
-    studioButton.textContent = 'Document Studio';
-    studioButton.addEventListener('click', () => {
-      ensureShell();
-      if (state.model) openModel(state.model);
-      else $('#studioFileInput').click();
-    });
-    const convertButton = document.createElement('button');
-    convertButton.id = 'convertCenterButton';
-    convertButton.className = 'studio-entry-button';
-    convertButton.type = 'button';
-    convertButton.textContent = 'แปลงไฟล์';
-    convertButton.addEventListener('click', () => {
-      ensureShell();
-      if (state.model) openConvertCenter();
-      else $('#studioFileInput').click();
-    });
-    headerActions.prepend(convertButton);
-    headerActions.prepend(studioButton);
-
-    const mobileNav = document.createElement('nav');
-    mobileNav.id = 'mobileWorkflowNav';
-    mobileNav.className = 'mobile-workflow-nav';
-    mobileNav.setAttribute('aria-label', 'ขั้นตอนทำงาน');
-    mobileNav.innerHTML = '<button type="button" data-mobile-action="studio">Studio</button><button type="button" data-mobile-action="convert">Convert</button>';
-    mobileNav.addEventListener('click', event => {
-      const action = event.target.dataset.mobileAction;
-      if (action === 'studio') studioButton.click();
-      if (action === 'convert') convertButton.click();
-    });
-    document.body.append(mobileNav);
-  }
+  document.querySelectorAll('#documentStudioButton, #convertCenterButton, #mobileWorkflowNav').forEach(element => element.remove());
   const mainInput = $('#fileInput');
   if (mainInput) mainInput.accept = FILE_ACCEPT;
   const uploadHint = $('#dropzone p');

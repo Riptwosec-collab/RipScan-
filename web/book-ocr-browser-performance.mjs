@@ -1,3 +1,4 @@
+import { loadTesseract } from './lazy-libraries.mjs';
 import {
   buildStructuredText,
   classifyBlockText,
@@ -203,7 +204,8 @@ class TesseractPool {
 
   async createSlot(index) {
     let timedOut = false;
-    const workerPromise = window.Tesseract.createWorker(['tha', 'eng'], 1, {
+    const tesseract = await loadTesseract();
+    const workerPromise = tesseract.createWorker(['tha', 'eng'], 1, {
       cacheMethod: 'write',
       logger: message => this.onLogger?.({ ...message, workerIndex: index }),
     });

@@ -1,3 +1,4 @@
+import { loadTesseract } from './lazy-libraries.mjs';
 import {
   TABLE_RECONSTRUCTION_VERSION,
   CELL_OCR_VARIANTS,
@@ -72,11 +73,11 @@ class CellOcrPool {
     this.disposed = false;
   }
   async init() {
-    if (!globalThis.Tesseract?.createWorker) throw new Error('โหลดระบบ OCR ไม่สำเร็จ');
+    const tesseract = await loadTesseract();
     const mobile = matchMedia('(pointer: coarse)').matches || innerWidth <= 720;
     const count = workerConcurrency({ mobile, hardwareConcurrency: navigator.hardwareConcurrency || 4 });
     for (let index = 0; index < count; index += 1) {
-      const worker = await globalThis.Tesseract.createWorker(['tha', 'eng'], 1, {
+      const worker = await tesseract.createWorker(['tha', 'eng'], 1, {
         logger: message => this.onProgress({ ...message, worker: index + 1 }),
       });
       await worker.setParameters?.({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '6' });

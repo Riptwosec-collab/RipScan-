@@ -188,25 +188,7 @@ function handleInput(event) {
 }
 
 function installButton() {
-  const header = $('.header-actions');
-  if (!header) return;
-  let button = $('#qualityCenterButton');
-  if (!button) {
-    button = document.createElement('button');
-    button.id = 'qualityCenterButton'; button.type = 'button'; button.textContent = 'Review / Compare';
-    button.addEventListener('click', () => {
-      if (!model()) return alert('เปิดเอกสารใน Document Studio ก่อน');
-      const center = ensureCenter(); renderReview(); center.showModal();
-    });
-    header.prepend(button);
-  }
-  const mobileNav = $('#mobileWorkflowNav');
-  if (mobileNav && !mobileNav.querySelector('[data-mobile-action="review"]')) {
-    const mobileButton = document.createElement('button');
-    mobileButton.type = 'button'; mobileButton.dataset.mobileAction = 'review'; mobileButton.textContent = 'Review';
-    mobileButton.addEventListener('click', () => button.click());
-    mobileNav.append(mobileButton);
-  }
+  document.querySelectorAll('#qualityCenterButton, [data-mobile-action="review"]').forEach(element => element.remove());
 }
 
 installButton();

@@ -1,3 +1,4 @@
+import { loadTesseract } from './lazy-libraries.mjs';
 import {
   DEFAULT_BOOK_OCR_OPTIONS,
   analyzeRegionFeatures,
@@ -435,9 +436,9 @@ function makeVariants(crop, estimatedTextHeight) {
 async function getWorker(language, onProgress) {
   const key = language === 'number' ? 'eng-number' : language;
   if (workerCache.has(key)) return workerCache.get(key);
-  if (!window.Tesseract?.createWorker) throw new Error('โหลด Tesseract.js ไม่สำเร็จ');
   const langs = language === 'eng' || language === 'number' ? ['eng'] : language === 'tha+eng' ? ['tha', 'eng'] : ['tha'];
-  const worker = await window.Tesseract.createWorker(langs, 1, { cacheMethod: 'write', logger: onProgress });
+  const tesseract = await loadTesseract();
+  const worker = await tesseract.createWorker(langs, 1, { cacheMethod: 'write', logger: onProgress });
   await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
   workerCache.set(key, worker);
   return worker;

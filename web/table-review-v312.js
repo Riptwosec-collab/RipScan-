@@ -1,3 +1,4 @@
+import { loadTesseract } from './lazy-libraries.mjs';
 import {
   CELL_OCR_VARIANTS,
   applyHeaderColumnTypes,
@@ -99,8 +100,8 @@ class CellOcrPool {
   }
 
   async init() {
-    if (!globalThis.Tesseract?.createWorker) throw new Error('โหลดระบบ OCR ไม่สำเร็จ');
-    this.worker = await globalThis.Tesseract.createWorker(['tha', 'eng'], 1, {
+    const tesseract = await loadTesseract();
+    this.worker = await tesseract.createWorker(['tha', 'eng'], 1, {
       logger: message => this.onProgress(message),
     });
     await this.worker.setParameters?.({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '6' });

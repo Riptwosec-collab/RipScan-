@@ -53,7 +53,7 @@ await writeFile(appPath, app, 'utf8');
 
 const bookUiPath = 'dist/book-ocr-ui.js';
 let bookUi = await readFile(bookUiPath, 'utf8');
-bookUi = replaceRequired(
+if (!bookUi.includes("import { loadTesseract } from './lazy-libraries.mjs';")) bookUi = replaceRequired(
   bookUi,
   "import { cancelBookCoverOcr, processBookCoverCanvas } from './book-ocr-browser-emergency.mjs';",
   "import { cancelBookCoverOcr, processBookCoverCanvas } from './book-ocr-browser-emergency.mjs';\nimport { loadTesseract } from './lazy-libraries.mjs';",
@@ -84,7 +84,7 @@ bookUi = replaceRequired(
   ].join('\n'),
   'reuse precomputed OCR review',
 );
-bookUi = replaceRequired(
+if (!bookUi.includes("import { loadTesseract } from './lazy-libraries.mjs';")) bookUi = replaceRequired(
   bookUi,
   "    worker = await window.Tesseract.createWorker(langs, 1, { cacheMethod: 'write' });",
   "    if (!window.Tesseract?.createWorker) await loadTesseract();\n    worker = await window.Tesseract.createWorker(langs, 1, { cacheMethod: 'write' });",
