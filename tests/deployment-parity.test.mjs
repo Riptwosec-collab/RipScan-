@@ -14,6 +14,8 @@ test('raw FastAPI frontend and production build source expose the same 3.3 entry
   assert.match(dockerfile, /COPY --from=frontend \/frontend\/dist \.\/web/u);
   assert.ok(!index.includes('tesseract.min.js'));
   assert.ok(advanced.includes("import { loadJsZip, loadTesseract } from './lazy-libraries.mjs'"));
+  assert.ok(advanced.includes("updateViaCache: 'none'"));
+  assert.ok(advanced.includes("serviceWorker.addEventListener('controllerchange'"));
   for (const asset of ['worker.min.js', 'tesseract-core-lstm.wasm.js']) {
     assert.ok(build.includes(asset), `build.mjs missing local OCR asset ${asset}`);
     assert.ok(serviceWorker.includes(asset), `web/sw.js missing local OCR asset ${asset}`);

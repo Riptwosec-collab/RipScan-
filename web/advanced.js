@@ -739,7 +739,15 @@ function installPwaControls() {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const reloadKey = 'ripscan-sw-controller-reloaded';
+    sessionStorage.removeItem(reloadKey);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (sessionStorage.getItem(reloadKey)) return;
+      sessionStorage.setItem(reloadKey, '1');
+      window.location.reload();
+    }, { once: true });
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+    await registration.update();
     await navigator.serviceWorker.ready;
     registration.active?.postMessage({ type: 'CACHE_SHELL' });
   } catch (error) {

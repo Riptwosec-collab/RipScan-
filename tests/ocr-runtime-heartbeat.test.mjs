@@ -33,5 +33,5 @@ test('production watchdog consumes heartbeat and keeps an absolute no-response c
   assert.match(packageJson.scripts.check, /build-ocr-runtime-recovery\.mjs/);
 
   const cache = await read('build-cache-version.mjs');
-  assert.match(cache, /ripscan-pwa-v4\.1\.4/);
+  assert.match(cache, /ripscan-pwa-v4\.1\.5/);
 });
