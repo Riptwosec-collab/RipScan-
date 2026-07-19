@@ -7,6 +7,14 @@ const sources = Object.freeze({
 
 const pending = new Map();
 const LIBRARY_TIMEOUT_MS = 15_000;
+const OCR_RUNTIME = Object.freeze({
+  workerPath: '/vendor/worker.min.js',
+  corePath: '/vendor/tesseract-core',
+  langPath: '/vendor/tessdata',
+  workerStartTimeoutMs: 90_000,
+  recognizeTimeoutMs: 90_000,
+  heartbeatMs: 4_000,
+});
 
 function waitForLibrary(promise, key) {
   let timer;
@@ -133,7 +141,7 @@ function loadScript(key, urls, ready) {
     const script = existing || document.createElement('script');
     const complete = () => ready() ? resolve(ready()) : reject(new Error(`LIBRARY_NOT_READY:${key}`));
     if (!existing) {
-      script.src = url;
+      script.src = Array.isArray(urls) ? urls[0] : urls;
       script.async = true;
       script.crossOrigin = 'anonymous';
       script.dataset.ripscanLibrary = key;
