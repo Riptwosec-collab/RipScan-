@@ -16,7 +16,9 @@ const lazyScripts = [
 for (const script of lazyScripts) {
   html = html.replace(new RegExp(`\\s*<script type="module" src="${script.replaceAll('/', '\\/').replaceAll('.', '\\.')}\\"><\\/script>`, 'g'), '');
 }
-html = html.replace(/\s*<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/jszip@3\.10\.1\/dist\/jszip\.min\.js"><\/script>/g, '');
+html = html
+  .replace(/\s*<script src="(?:https:\/\/cdn\.jsdelivr\.net\/npm\/tesseract\.js@7(?:\.0\.0)?\/dist\/tesseract\.min\.js|\/vendor\/tesseract\.min\.js)"><\/script>/g, '')
+  .replace(/\s*<script src="(?:https:\/\/cdn\.jsdelivr\.net\/npm\/jszip@3\.10\.1\/dist\/jszip\.min\.js|\/vendor\/jszip\.min\.js)"><\/script>/g, '');
 
 const lazyStyles = [
   '/performance-v22.css',

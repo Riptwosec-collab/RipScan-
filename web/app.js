@@ -1,6 +1,4 @@
-import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+import { loadPdfJs, loadTesseract } from './lazy-libraries.mjs';
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -122,10 +120,10 @@ function updateProgress(message) {
 
 async function ensureWorker() {
   if (state.worker) return state.worker;
-  if (!window.Tesseract?.createWorker) throw new Error('โหลดระบบ OCR ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วรีเฟรชหน้า');
   state.progressContext = 'กำลังเตรียมภาษา OCR';
   const languages = LANGUAGE_MAP[language.value] || LANGUAGE_MAP.auto;
-  state.worker = await window.Tesseract.createWorker(languages, 1, { logger: updateProgress });
+  const tesseract = await loadTesseract();
+  state.worker = await tesseract.createWorker(languages, 1, { logger: updateProgress });
   return state.worker;
 }
 
@@ -482,6 +480,7 @@ async function renderPdfPage(page) {
 
 async function processPdf(file, fileIndex) {
   const data = new Uint8Array(await file.arrayBuffer());
+  const pdfjsLib = await loadPdfJs();
   const loadingTask = pdfjsLib.getDocument({ data });
   const pdf = await loadingTask.promise;
   if (pdf.numPages > MAX_PDF_PAGES) {

@@ -13,7 +13,8 @@ function replaceRequired(source, search, replacement, label) {
 
 const appPath = 'dist/app.js';
 let app = await readFile(appPath, 'utf8');
-app = replaceRequired(
+const appUsesCentralLazyRuntime = app.includes("import { loadPdfJs, loadTesseract } from './lazy-libraries.mjs';");
+if (!appUsesCentralLazyRuntime) app = replaceRequired(
   app,
   [
     "import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';\n\npdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';",
@@ -28,7 +29,7 @@ app = replaceRequired(
   ].join('\n'),
   'lazy PDF.js import',
 );
-app = replaceRequired(
+if (!appUsesCentralLazyRuntime) app = replaceRequired(
   app,
   "  if (!window.Tesseract?.createWorker) throw new Error('โหลดระบบ OCR ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วรีเฟรชหน้า');",
   [
@@ -70,7 +71,7 @@ const recognitionReplacement = [
 ].join('\n');
 app = replaceRequired(app, recognitionPattern, recognitionReplacement, 'worker OCR delegation');
 
-app = replaceRequired(
+if (!appUsesCentralLazyRuntime) app = replaceRequired(
   app,
   'async function processPdf(file, fileIndex) {\n  const data = new Uint8Array(await file.arrayBuffer());',
   'async function processPdf(file, fileIndex) {\n  const pdfjsLib = await ensurePdfJs();\n  const data = new Uint8Array(await file.arrayBuffer());',

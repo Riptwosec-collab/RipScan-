@@ -35,7 +35,8 @@ test('production lazy build removes heavy scripts styles and JSZip from initial 
     '/document-studio.css', '/pdf-tools.css', '/table-auto.css', '/performance-v22.css',
   ]) assert.ok(build.includes(required), `missing lazy build rule ${required}`);
   assert.match(build, /jszip@3\\\.10\\\.1/u);
-  assert.match(build, /html = html\.replace\([^;]+jszip[^;]+, ''\)/su);
+  assert.match(build, /vendor\\\/tesseract\\\.min\\\.js/u);
+  assert.match(build, /vendor\\\/jszip\\\.min\\\.js/u);
 });
 
 test('static build audit measures before and after byte counts from the same build', async () => {
