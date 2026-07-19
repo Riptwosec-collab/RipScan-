@@ -1,6 +1,4 @@
-import { loadJsZip, loadTesseract } from './lazy-libraries.mjs';
-
-const ADV_VERSION = '1.4.1';
+const ADV_VERSION = '1.4.0';
 const OCR_POOL_LIMIT = 2;
 const activeWorkers = new Set();
 const tableAnalyses = new WeakMap();
@@ -100,35 +98,40 @@ async function cancelAllOcr() {
   setError('ยกเลิกงาน OCR แล้ว ข้อความที่ทำเสร็จก่อนยกเลิกยังคงอยู่');
 }
 
-async function createTrackedWorker(langs, options = {}) {
-  const tesseract = await loadTesseract();
-  const originalLogger = options.logger;
-  const startedAt = performance.now();
-  const worker = await tesseract.createWorker(langs, 1, {
-    ...options,
-    cacheMethod: options.cacheMethod || 'write',
-    logger(message) {
-      originalLogger?.(message);
-      if (message?.status === 'recognizing text' && Number(message.progress) > 0) {
-        const elapsed = (performance.now() - startedAt) / 1000;
-        const eta = elapsed * (1 - message.progress) / message.progress;
-        const metric = $('#ocrMetrics');
-        if (metric) metric.textContent = `OCR ${Math.round(message.progress * 100)}% · ETA จากความคืบหน้าจริง ${formatDuration(eta)}`;
+function patchTesseractWorkers() {
+  if (!window.Tesseract?.createWorker || window.Tesseract.__ripscanPatched) return;
+  const originalCreateWorker = window.Tesseract.createWorker.bind(window.Tesseract);
+  window.Tesseract.createWorker = async function patchedCreateWorker(langs, oem, options = {}, config) {
+    const originalLogger = options?.logger;
+    const startedAt = performance.now();
+    const wrappedOptions = {
+      ...options,
+      cacheMethod: options?.cacheMethod || 'write',
+      logger(message) {
+        originalLogger?.(message);
+        if (message?.status === 'recognizing text' && Number(message.progress) > 0) {
+          const elapsed = (performance.now() - startedAt) / 1000;
+          const eta = elapsed * (1 - message.progress) / message.progress;
+          const metric = $('#ocrMetrics');
+          if (metric) metric.textContent = `OCR ${Math.round(message.progress * 100)}% · ETA จากความคืบหน้าจริง ${formatDuration(eta)}`;
+        }
+      },
+    };
+    const worker = await originalCreateWorker(langs, oem, wrappedOptions, config);
+    activeWorkers.add(worker);
+    setCancelEnabled(true);
+    const terminate = worker.terminate?.bind(worker);
+    worker.terminate = async (...args) => {
+      try {
+        return await terminate?.(...args);
+      } finally {
+        activeWorkers.delete(worker);
+        if (!activeWorkers.size) setCancelEnabled(false);
       }
-    },
-  });
-  activeWorkers.add(worker);
-  setCancelEnabled(true);
-  const terminate = worker.terminate?.bind(worker);
-  worker.terminate = async (...args) => {
-    try {
-      return await terminate?.(...args);
-    } finally {
-      activeWorkers.delete(worker);
-      if (!activeWorkers.size) setCancelEnabled(false);
-    }
+    };
+    return worker;
   };
-  return worker;
+  window.Tesseract.__ripscanPatched = true;
 }
 
 function getManagedPages(card, selectedOnly = false) {
@@ -149,16 +152,15 @@ function getManagedPages(card, selectedOnly = false) {
 }
 
 async function makeScheduler(jobCount, label) {
-  const tesseract = await loadTesseract();
-  if (!tesseract.createScheduler) throw new Error('เบราว์เซอร์โหลดระบบ Worker Pool ไม่สำเร็จ');
+  if (!window.Tesseract?.createScheduler) throw new Error('เบราว์เซอร์โหลดระบบ Worker Pool ไม่สำเร็จ');
   const token = cancelGeneration;
-  const scheduler = tesseract.createScheduler();
+  const scheduler = window.Tesseract.createScheduler();
   const count = selectedWorkerCount(jobCount);
   const workers = [];
   const startedAt = performance.now();
   let latestProgress = 0;
   for (let index = 0; index < count; index += 1) {
-    const worker = await createTrackedWorker(currentLanguages(), {
+    const worker = await window.Tesseract.createWorker(currentLanguages(), 1, {
       cacheMethod: 'write',
       logger(message) {
         if (token !== cancelGeneration) return;
@@ -583,9 +585,9 @@ function xmlEscape(value) {
 }
 
 async function analysisXlsx(analysis) {
-  const JSZip = await loadJsZip();
+  if (!window.JSZip) throw new Error('โหลดระบบ XLSX ไม่สำเร็จ');
   const matrix = analysis.table ? tableMatrix(analysis.table) : [['Field', 'Value'], ...analysis.fields.map(field => [field.key, field.value])];
-  const zip = new JSZip();
+  const zip = new window.JSZip();
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`);
   zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
   zip.folder('xl').file('workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="OCR Table" sheetId="1" r:id="rId1"/></sheets></workbook>`);
@@ -739,15 +741,7 @@ function installPwaControls() {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    const reloadKey = 'ripscan-sw-controller-reloaded';
-    sessionStorage.removeItem(reloadKey);
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (sessionStorage.getItem(reloadKey)) return;
-      sessionStorage.setItem(reloadKey, '1');
-      window.location.reload();
-    }, { once: true });
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
-    await registration.update();
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     await navigator.serviceWorker.ready;
     registration.active?.postMessage({ type: 'CACHE_SHELL' });
   } catch (error) {
@@ -764,7 +758,7 @@ async function prepareOfflinePack() {
   try {
     const registration = await navigator.serviceWorker.ready;
     registration.active?.postMessage({ type: 'CACHE_OFFLINE_PACK' });
-    worker = await createTrackedWorker(['tha', 'eng'], { cacheMethod: 'write' });
+    worker = await window.Tesseract.createWorker(['tha', 'eng'], 1, { cacheMethod: 'write' });
     await worker.setParameters?.({ user_defined_dpi: '300' });
     button.textContent = 'ออฟไลน์พร้อมใช้งาน';
     localStorage.setItem('ripscan-offline-ready', new Date().toISOString());
@@ -790,6 +784,7 @@ runButton?.addEventListener('click', () => {
   clearError();
 }, true);
 
+patchTesseractWorkers();
 installPerformanceControls();
 installPwaControls();
 observeResults();

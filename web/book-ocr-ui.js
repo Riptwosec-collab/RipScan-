@@ -4,7 +4,6 @@ import {
   preserveTextSymbols,
 } from './book-ocr-core.mjs';
 import { cancelBookCoverOcr, processBookCoverCanvas } from './book-ocr-browser.mjs';
-import { loadTesseract } from './lazy-libraries.mjs';
 
 const STORAGE_KEY = 'ripscan-book-ocr-options-v1';
 const processedPages = new WeakSet();
@@ -313,7 +312,7 @@ async function rerunBlock(pageCard, blockId) {
   try {
     updateGlobalStatus('กำลังอ่าน Block ใหม่ตามภาษาที่เลือก…', true);
     const langs = language === 'eng' || language === 'number' ? ['eng'] : language === 'tha+eng' ? ['tha', 'eng'] : ['tha'];
-    worker = await (await loadTesseract()).createWorker(langs, 1, { cacheMethod: 'write' });
+    worker = await window.Tesseract.createWorker(langs, 1, { cacheMethod: 'write' });
     await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
     if (language === 'number') await worker.setParameters({ tessedit_char_whitelist: '0123456789๐๑๒๓๔๕๖๗๘๙ISBNisbnXx-–—−_/|:.,()฿ บาท' });
     const response = await worker.recognize(crop);

@@ -1,5 +1,4 @@
-export const DOCUMENT_MODEL_VERSION = '4.0.0';
-export const FORM_BLOCK_TYPES = Object.freeze(['field', 'checkbox', 'radio', 'signature', 'stamp', 'barcode', 'qr', 'label', 'value']);
+export const DOCUMENT_MODEL_VERSION = '3.0.0';
 
 let sequence = 0;
 
@@ -14,13 +13,6 @@ export function makeId(prefix = 'node') {
 export function cloneValue(value) {
   if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
-}
-
-function redactionMetadata(metadata = {}) {
-  return {
-    redactedAt: metadata?.redactedAt || null,
-    redactionMethod: metadata?.redactionMethod || 'burn-in-and-remove-text-layer',
-  };
 }
 
 export function defaultTextStyle(overrides = {}) {
@@ -45,8 +37,7 @@ export function defaultTextStyle(overrides = {}) {
   };
 }
 
-export function createDocument({ name = 'เอกสารใหม่', sourceType = 'unknown', metadata = {}, assets = [], exportSettings = {} } = {}) {
-  const sourceFormat = metadata.sourceFormat || sourceType || 'unknown';
+export function createDocument({ name = 'เอกสารใหม่', sourceType = 'unknown', metadata = {} } = {}) {
   return {
     version: DOCUMENT_MODEL_VERSION,
     id: makeId('document'),
@@ -57,20 +48,9 @@ export function createDocument({ name = 'เอกสารใหม่', source
     metadata: {
       fidelityMode: 'editable_reconstruction',
       importedBy: 'RipScan Document Studio',
-      sourceFileName: metadata.sourceFileName || name,
-      sourceFormat,
-      sourceMimeType: metadata.sourceMimeType || '',
-      sourcePageSize: metadata.sourcePageSize || {},
-      sourceOrientation: metadata.sourceOrientation || 'unknown',
-      sourceStructure: metadata.sourceStructure || {},
-      importAdapter: metadata.importAdapter || sourceFormat,
-      preferredRoundTripFormat: metadata.preferredRoundTripFormat || sourceFormat,
-      dualRepresentation: true,
       ...metadata,
     },
     pages: [],
-    assets: Array.isArray(assets) ? cloneValue(assets) : [],
-    exportSettings: { ...exportSettings },
     reviewIssues: [],
   };
 }
@@ -85,27 +65,16 @@ export function createPage({
   name = '',
   blocks = [],
   metadata = {},
-  visualReference = null,
-  editableLayer = null,
 } = {}) {
-  const pageWidth = Math.max(1, Number(width) || 794);
-  const pageHeight = Math.max(1, Number(height) || 1123);
-  const normalizedBlocks = blocks.map(normalizeBlock);
   return {
     id,
     number,
     name: name || `หน้า ${number}`,
-    width: pageWidth,
-    height: pageHeight,
+    width: Math.max(1, Number(width) || 794),
+    height: Math.max(1, Number(height) || 1123),
     background,
     backgroundImage,
-    blocks: normalizedBlocks,
-    editableLayer: editableLayer ? cloneValue(editableLayer) : { blockIds: normalizedBlocks.map(block => block.id) },
-    visualReference: visualReference ? cloneValue(visualReference) : {
-      backgroundImage,
-      sourcePageSize: { width: pageWidth, height: pageHeight },
-      originalLayoutMap: [],
-    },
+    blocks: blocks.map(normalizeBlock),
     metadata: { ...metadata },
   };
 }
@@ -122,46 +91,30 @@ function baseBlock(type, options = {}) {
     rotation: Number(options.rotation) || 0,
     locked: Boolean(options.locked),
     hidden: Boolean(options.hidden),
-    redacted: Boolean(options.redacted),
     confidence: Number.isFinite(Number(options.confidence)) ? Number(options.confidence) : 1,
     reviewStatus: options.reviewStatus || 'verified',
     source: options.source || 'manual',
-    sourceElementType: options.sourceElementType || options.metadata?.sourceElementType || options.source || 'manual',
-    sourceElementId: options.sourceElementId || options.metadata?.sourceElementId || '',
-    sourceFormat: options.sourceFormat || options.metadata?.sourceFormat || '',
-    exportSupport: options.exportSupport || options.metadata?.exportSupport || 'native_or_compatible',
-    willRemainEditable: options.willRemainEditable !== false,
-    compatibilityNotes: Array.isArray(options.compatibilityNotes) ? [...options.compatibilityNotes] : [],
     metadata: { ...(options.metadata || {}) },
   };
 }
 
 export function createTextBlock(options = {}) {
-  const redacted = Boolean(options.redacted);
   return {
     ...baseBlock(options.role === 'header' || options.role === 'footer' ? options.role : 'text', options),
     role: options.role || 'paragraph',
-    text: redacted ? '' : String(options.text ?? ''),
-    spans: redacted ? [] : (Array.isArray(options.spans) ? cloneValue(options.spans) : []),
+    text: String(options.text ?? ''),
+    spans: Array.isArray(options.spans) ? cloneValue(options.spans) : [],
     style: defaultTextStyle(options.style),
   };
 }
 
 export function createImageBlock(options = {}) {
-  const redacted = Boolean(options.redacted);
   return {
     ...baseBlock('image', options),
-    src: redacted ? '' : String(options.src || ''),
-    alt: redacted ? '' : String(options.alt || ''),
+    src: String(options.src || ''),
+    alt: String(options.alt || ''),
     fit: options.fit || 'contain',
     opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
-    lockAspectRatio: options.lockAspectRatio !== false,
-    crop: {
-      left: Math.max(0, Number(options.crop?.left) || 0),
-      top: Math.max(0, Number(options.crop?.top) || 0),
-      right: Math.max(0, Number(options.crop?.right) || 0),
-      bottom: Math.max(0, Number(options.crop?.bottom) || 0),
-    },
     style: {
       borderColor: '#d1d5db',
       borderWidth: 0,
@@ -177,7 +130,6 @@ export function createShapeBlock(options = {}) {
   return {
     ...baseBlock(options.shape === 'line' ? 'line' : 'shape', options),
     shape: options.shape || 'rectangle',
-    opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
     style: {
       fill: 'transparent',
       stroke: '#111827',
@@ -190,39 +142,30 @@ export function createShapeBlock(options = {}) {
 }
 
 export function createFieldBlock(options = {}) {
-  const type = FORM_BLOCK_TYPES.includes(options.type) ? options.type : 'field';
-  const redacted = Boolean(options.redacted);
   return {
-    ...baseBlock(type, options),
-    label: redacted ? '' : String(options.label || ''),
-    value: redacted ? '' : String(options.value || ''),
-    fieldType: options.fieldType || (type === 'field' ? 'text' : type),
+    ...baseBlock('field', options),
+    label: String(options.label || ''),
+    value: String(options.value || ''),
+    fieldType: options.fieldType || 'text',
     checked: Boolean(options.checked),
-    choices: redacted ? [] : (Array.isArray(options.choices) ? cloneValue(options.choices) : []),
-    validation: redacted ? null : (options.validation ? cloneValue(options.validation) : null),
-    src: redacted ? '' : String(options.src || ''),
-    alt: redacted ? '' : String(options.alt || ''),
     style: defaultTextStyle(options.style),
   };
 }
 
 export function createTableCell({
   id = makeId('cell'), row = 0, column = 0, rowSpan = 1, columnSpan = 1,
-  text = '', style = {}, hidden = false, redacted = false, confidence = 1, reviewStatus = 'verified', metadata = {},
+  text = '', style = {}, hidden = false, confidence = 1, reviewStatus = 'verified',
 } = {}) {
-  const isRedacted = Boolean(redacted);
   return {
     id,
     row: Math.max(0, Number(row) || 0),
     column: Math.max(0, Number(column) || 0),
     rowSpan: Math.max(1, Number(rowSpan) || 1),
     columnSpan: Math.max(1, Number(columnSpan) || 1),
-    text: isRedacted ? '' : String(text ?? ''),
+    text: String(text ?? ''),
     hidden: Boolean(hidden),
-    redacted: isRedacted,
     confidence: Number.isFinite(Number(confidence)) ? Number(confidence) : 1,
     reviewStatus,
-    metadata: isRedacted ? redactionMetadata(metadata) : { ...metadata },
     style: {
       fontFamily: "system-ui, 'Noto Sans Thai', sans-serif",
       fontSize: 14,
@@ -256,7 +199,7 @@ export function createTableBlock({
     ...baseBlock('table', { id, ...options }),
     rows: Math.max(1, Number(rows) || 1),
     columns: Math.max(1, Number(columns) || 1),
-    cells: cells.map(cell => createTableCell(options.redacted ? { ...cell, redacted: true } : cell)),
+    cells: cells.map(createTableCell),
     columnWidths: [...columnWidths],
     rowHeights: [...rowHeights],
     merges: cloneValue(merges || []),
@@ -301,59 +244,21 @@ export function normalizeBlock(block = {}) {
   if (block.type === 'table') return createTableBlock(block);
   if (block.type === 'image') return createImageBlock(block);
   if (block.type === 'shape' || block.type === 'line') return createShapeBlock(block);
-  if (FORM_BLOCK_TYPES.includes(block.type)) return createFieldBlock(block);
+  if (block.type === 'field') return createFieldBlock(block);
   return createTextBlock(block);
 }
 
-export function migrateDocumentModel(documentModel) {
-  const source = cloneValue(documentModel || {});
-  const fromVersion = String(source.version || '1.0.0');
-  source.pages = Array.isArray(source.pages) ? source.pages : [];
-  for (const page of source.pages) {
-    page.blocks = Array.isArray(page.blocks) ? page.blocks : [];
-    for (const block of page.blocks) {
-      if (block.type === 'field' && block.fieldType === 'checkbox') block.type = 'checkbox';
-      if (block.type === 'field' && block.fieldType === 'radio') block.type = 'radio';
-      if (block.redacted) {
-        block.text = '';
-        block.value = '';
-        block.label = '';
-        block.alt = '';
-        block.src = '';
-        block.spans = [];
-        block.choices = [];
-        block.validation = null;
-        if (Array.isArray(block.cells)) block.cells.forEach(cell => { cell.text = ''; cell.redacted = true; });
-        block.metadata = redactionMetadata(block.metadata);
-      }
-      if (Array.isArray(block.cells)) block.cells.forEach(cell => {
-        if (!cell.redacted) return;
-        cell.text = '';
-        cell.metadata = redactionMetadata(cell.metadata);
-      });
-      if (!block.redacted) block.metadata = { ...(block.metadata || {}), migratedFrom: block.metadata?.migratedFrom || fromVersion };
-    }
-  }
-  source.metadata = { ...(source.metadata || {}), modelMigratedFrom: source.metadata?.modelMigratedFrom || fromVersion };
-  source.version = DOCUMENT_MODEL_VERSION;
-  return source;
-}
-
 export function normalizeDocumentModel(documentModel) {
-  const migrated = migrateDocumentModel(documentModel);
   const document = {
     ...createDocument(),
-    ...migrated,
+    ...cloneValue(documentModel || {}),
   };
   document.version = DOCUMENT_MODEL_VERSION;
-  document.metadata = { ...createDocument({ name: document.name, sourceType: document.sourceType, metadata: document.metadata }).metadata, ...(document.metadata || {}) };
   document.pages = Array.isArray(document.pages)
     ? document.pages.map((page, index) => createPage({ ...page, number: page.number || index + 1 }))
     : [];
   document.updatedAt = new Date().toISOString();
   document.reviewIssues = Array.isArray(document.reviewIssues) ? document.reviewIssues : [];
-  document.assets = Array.isArray(document.assets) ? document.assets : [];
-  document.exportSettings = document.exportSettings && typeof document.exportSettings === 'object' ? document.exportSettings : {};
   return document;
 }
 
@@ -366,7 +271,7 @@ export function validateDocumentModel(documentModel) {
     if (!Array.isArray(page.blocks)) errors.push(`page_${pageIndex}_blocks_missing`);
     for (const block of page.blocks || []) {
       if (!block.id) errors.push(`page_${pageIndex}_block_id_missing`);
-      if (!['text', 'header', 'footer', 'table', 'image', 'shape', 'line', ...FORM_BLOCK_TYPES].includes(block.type)) errors.push(`block_${block.id}_type_invalid`);
+      if (!['text', 'header', 'footer', 'table', 'image', 'shape', 'line', 'field'].includes(block.type)) errors.push(`block_${block.id}_type_invalid`);
       if (!(block.width > 0 && block.height > 0)) errors.push(`block_${block.id}_size_invalid`);
       if (block.type === 'table') {
         if (!(block.rows > 0 && block.columns > 0)) errors.push(`table_${block.id}_dimensions_invalid`);
@@ -504,14 +409,10 @@ export function splitTableCell(table, cellId) {
 
 export function documentToPlainText(documentModel) {
   return (documentModel.pages || []).map(page => (page.blocks || [])
-    .filter(block => !block.redacted && !block.hidden)
     .sort((a, b) => a.y - b.y || a.x - b.x)
     .map(block => {
       if (block.type === 'table') {
-        return Array.from({ length: block.rows }, (_, row) => Array.from({ length: block.columns }, (_, column) => {
-          const cell = getTableCell(block, row, column);
-          return cell && !cell.redacted ? cell.text || '' : '';
-        }).join('\t')).join('\n');
+        return Array.from({ length: block.rows }, (_, row) => Array.from({ length: block.columns }, (_, column) => getTableCell(block, row, column)?.text || '').join('\t')).join('\n');
       }
       if (block.type === 'field') return `${block.label}${block.label ? ': ' : ''}${block.value}`;
       return block.text || '';

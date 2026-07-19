@@ -1,4 +1,4 @@
-const VERSION = 'ripscan-pwa-v4.1.0';
+const VERSION = 'ripscan-pwa-v2.3.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -10,17 +10,8 @@ const APP_SHELL = [
   '/verified.css',
   '/redesign.css',
   '/compact-home.css',
-  '/layout-cover.css',
-  '/reference-scale.css',
-  '/cover-recovery.css',
-  '/performance-v22.css',
-  '/document-studio.css',
-  '/table-review-v31.css',
   '/book-ocr.css',
   '/table-auto.css',
-  '/table-review-v31.css',
-  '/document-studio.css',
-  '/pdf-tools.css',
   '/app.js',
   '/upgrade.js',
   '/advanced.js',
@@ -32,66 +23,19 @@ const APP_SHELL = [
   '/book-ocr-core.mjs',
   '/book-ocr-rules.mjs',
   '/book-ocr-browser.mjs',
-  '/book-ocr-browser-recovery.mjs',
-  '/book-ocr-browser-hard-block.mjs',
-  '/book-ocr-browser-performance.mjs',
   '/book-ocr-ui.js',
-  '/cover-ocr-core.mjs',
-  '/cover-ocr-rules.mjs',
-  '/cover-recovery-core.mjs',
-  '/cover-hard-block.mjs',
-  '/cover-ocr-ui.js',
-  '/cover-recovery-ui.js',
-  '/sara-am-spacing.mjs',
-  '/sara-am-recovery-v21.mjs',
-  '/ocr-performance-core.mjs',
-  '/ocr-preprocess-worker.js',
-  '/performance-v22-ui.js',
-  '/table-reconstruction-core.mjs',
-  '/table-reconstruction-worker.js',
-  '/table-review-v31.js',
-  '/document-model.mjs',
-  '/office-import.mjs',
-  '/editor-export.mjs',
-  '/document-studio.js',
-  '/project-core.mjs',
-  '/project-workspace.js',
   '/table-structure-core.mjs',
   '/table-auto-ui.js',
-  '/table-reconstruction-core.mjs',
-  '/table-reconstruction-worker.js',
-  '/table-review-v312.js',
-  '/document-model.mjs',
-  '/office-import.mjs',
-  '/editor-export.mjs',
-  '/document-studio.js',
-  '/pdf-utility-core.mjs',
-  '/pdf-page-organizer.mjs',
-  '/pdf-worker.js',
-  '/pdf-tool-runtime.mjs',
-  '/ripscan-project.mjs',
-  '/roundtrip-export.mjs',
-  '/pdf-tools-ui.js',
   '/theme-ui.js',
   '/manifest.webmanifest',
   '/icon-192.svg',
   '/icon-512.svg',
-  '/fonts/NotoSansThai.ttf',
-  '/fonts/OFL-NotoSansThai.txt',
-  '/quality-core.mjs',
-  '/quality-center.js',
-  '/quality-center.css',
 ];
 const OFFLINE_REMOTE = [
-  'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0/tesseract-core-lstm.wasm.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js',
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs',
-  'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm',
-  'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/+esm',
-  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansthai/NotoSansThai-Regular.ttf',
 ];
 
 self.addEventListener('install', event => {
@@ -126,7 +70,6 @@ function shouldRuntimeCache(url) {
     || url.pathname.endsWith('.traineddata.gz')
     || url.pathname.endsWith('.wasm')
     || url.pathname.endsWith('.wasm.js')
-    || url.pathname.endsWith('.ttf')
     || url.pathname.endsWith('/worker.min.js');
 }
 

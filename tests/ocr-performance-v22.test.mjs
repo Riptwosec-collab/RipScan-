@@ -91,8 +91,7 @@ test('progress stages are monotonic and worker limits match spec', () => {
   ];
   for (let index = 1; index < values.length; index += 1) assert.ok(values[index] >= values[index - 1]);
   assert.equal(OCR_LIMITS.fastPassMaxSide, 2200);
-  assert.equal(OCR_LIMITS.regionTimeoutMs, 30_000);
-  assert.equal(OCR_LIMITS.retryTimeoutMs, 45_000);
-  assert.equal(OCR_LIMITS.pageTimeoutMs, 5 * 60_000);
+  assert.equal(OCR_LIMITS.regionTimeoutMs, 15_000);
+  assert.equal(OCR_LIMITS.retryTimeoutMs, 20_000);
   assert.equal(OCR_LIMITS.watchdogMs, 10_000);
 });

@@ -1,4 +1,3 @@
-import { loadTesseract } from './lazy-libraries.mjs';
 import {
   buildStructuredText,
   classifyBlockText,
@@ -59,30 +58,9 @@ function dispatchProgress(detail) {
 }
 
 function emitProgress(configuration, detail) {
-  const incoming = Number(detail?.progress || 0);
-  const previous = Number(configuration.__lastProgress || 0);
-  const progress = detail?.status === 'cancelled' ? 0 : Math.max(previous, Math.min(1, incoming));
-  configuration.__lastProgress = progress;
-  const payload = { timestamp: performance.now(), ...detail, progress };
+  const payload = { timestamp: performance.now(), ...detail };
   configuration.onProgress?.(payload);
   dispatchProgress(payload);
-}
-
-function workerHeartbeatLabel(message = {}) {
-  const status = String(message.status || '').toLowerCase();
-  const percent = Math.max(0, Math.min(100, Math.round(Number(message.progress || 0) * 100)));
-  if (status.includes('loading tesseract core')) return 'กำลังโหลด OCR Core';
-  if (status.includes('loading language')) return 'กำลังโหลดภาษาไทย–อังกฤษ';
-  if (status.includes('initializing')) return 'กำลังเริ่ม OCR Worker';
-  if (status.includes('recognizing text')) return `OCR Worker กำลังอ่านข้อความ · ${percent}%`;
-  return status ? `OCR Worker · ${status}` : 'OCR Worker ยังทำงานอยู่';
-}
-
-function throwIfAborted(signal) {
-  if (!signal?.aborted) return;
-  throw typeof DOMException === 'function'
-    ? new DOMException(String(signal.reason || 'OCR_CANCELLED'), 'AbortError')
-    : Object.assign(new Error(String(signal.reason || 'OCR_CANCELLED')), { name: 'AbortError' });
 }
 
 function supportsPerformancePipeline() {
@@ -93,17 +71,14 @@ function supportsPerformancePipeline() {
 }
 
 class PreprocessClient {
-  constructor({ onProgress = null, signal = null } = {}) {
+  constructor() {
     this.worker = new Worker('/ocr-preprocess-worker.js');
     this.pending = new Map();
     this.sequence = 0;
-    this.onProgress = onProgress;
-    this.signal = signal;
     this.worker.addEventListener('message', event => {
       const message = event.data || {};
       if (message.type === 'progress') {
         window.dispatchEvent(new CustomEvent('ripscan:preprocess-progress', { detail: message }));
-        this.onProgress?.(message);
         return;
       }
       const pending = this.pending.get(message.requestId);
@@ -127,56 +102,23 @@ class PreprocessClient {
     });
   }
 
-  request(type, payload = {}, transfer = [], { timeoutMs = 15_000, signal = this.signal } = {}) {
+  request(type, payload = {}, transfer = []) {
     const requestId = `p${++this.sequence}`;
     return new Promise((resolve, reject) => {
-      let timer = null;
-      let settled = false;
-      const cleanup = () => {
-        clearTimeout(timer);
-        signal?.removeEventListener?.('abort', onAbort);
-        this.pending.delete(requestId);
-      };
-      const finish = (callback, value) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        callback(value);
-      };
-      const onAbort = () => {
-        const error = typeof DOMException === 'function'
-          ? new DOMException(String(signal?.reason || 'OCR_CANCELLED'), 'AbortError')
-          : Object.assign(new Error(String(signal?.reason || 'OCR_CANCELLED')), { name: 'AbortError' });
-        finish(reject, error);
-      };
-      if (signal?.aborted) return onAbort();
-      this.pending.set(requestId, {
-        resolve: value => finish(resolve, value),
-        reject: error => finish(reject, error),
-      });
-      signal?.addEventListener?.('abort', onAbort, { once: true });
-      timer = setTimeout(() => {
-        const error = new Error(`PREPROCESS_TIMEOUT:${type}`);
-        error.code = 'PREPROCESS_TIMEOUT';
-        finish(reject, error);
-      }, Math.max(1, timeoutMs));
-      try {
-        this.worker.postMessage({ type, requestId, ...payload }, transfer);
-      } catch (error) {
-        finish(reject, error);
-      }
+      this.pending.set(requestId, { resolve, reject });
+      this.worker.postMessage({ type, requestId, ...payload }, transfer);
     });
   }
 
   init(jobId, bitmap, documentType) {
-    return this.request('init', { jobId, bitmap, documentType, maxSide: OCR_LIMITS.fastPassMaxSide }, [bitmap], { timeoutMs: 20_000 });
+    return this.request('init', { jobId, bitmap, documentType, maxSide: OCR_LIMITS.fastPassMaxSide }, [bitmap]);
   }
-  segment(jobId, documentType) { return this.request('segment', { jobId, documentType }, [], { timeoutMs: 20_000 }); }
+  segment(jobId, documentType) { return this.request('segment', { jobId, documentType }); }
   preprocess(jobId, bbox, variants, saraAmSuspected = false) {
-    return this.request('preprocess', { jobId, bbox, variants, saraAmSuspected }, [], { timeoutMs: 18_000 });
+    return this.request('preprocess', { jobId, bbox, variants, saraAmSuspected });
   }
-  dispose(jobId) { return this.request('dispose', { jobId }, [], { timeoutMs: 3_000, signal: null }).catch(() => null); }
-  cancel(jobId) { return this.request('cancel', { jobId }, [], { timeoutMs: 3_000, signal: null }).catch(() => null); }
+  dispose(jobId) { return this.request('dispose', { jobId }).catch(() => null); }
+  cancel(jobId) { return this.request('cancel', { jobId }).catch(() => null); }
   terminate() {
     this.worker.terminate();
     for (const pending of this.pending.values()) pending.reject(new Error('OCR_CANCELLED'));
@@ -195,28 +137,14 @@ class TesseractPool {
   }
 
   async start() {
-    for (let index = 0; index < this.count; index += 1) {
-      this.onLogger?.({ status: 'initializing worker', progress: index / Math.max(1, this.count), workerIndex: index });
-      this.slots.push(await this.createSlot(index));
-      this.onLogger?.({ status: 'worker ready', progress: (index + 1) / Math.max(1, this.count), workerIndex: index });
-    }
+    for (let index = 0; index < this.count; index += 1) this.slots.push(await this.createSlot(index));
   }
 
   async createSlot(index) {
-    let timedOut = false;
-    const tesseract = await loadTesseract();
-    const workerPromise = tesseract.createWorker(['tha', 'eng'], 1, {
+    const worker = await window.Tesseract.createWorker(['tha', 'eng'], 1, {
       cacheMethod: 'write',
       logger: message => this.onLogger?.({ ...message, workerIndex: index }),
     });
-    workerPromise.then(worker => { if (timedOut) worker.terminate?.(); }).catch(() => {});
-    let worker;
-    try {
-      worker = await withTimeout(() => workerPromise, 25_000, () => { timedOut = true; this.metrics.timedOut += 1; });
-    } catch (error) {
-      try { await workerPromise.then(created => created.terminate?.()); } catch {}
-      throw error;
-    }
     await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
     return { index, worker, tail: Promise.resolve(), pending: 0, generation: 0 };
   }
@@ -352,15 +280,7 @@ function createReviewUrls(variantResults, requiresReview) {
 }
 
 async function processRegion({ client, pool, jobId, region, index, total, page, configuration, runId, metrics, cache, fileHash }) {
-  throwIfAborted(configuration.signal);
   if (runId !== activeRun) throw new Error('BOOK_OCR_CANCELLED');
-  emitProgress(configuration, {
-    status: 'preprocess_block', stage: 'fast_pass', page: configuration.pageNumber || 1,
-    block: index + 1, totalBlocks: total, textRegions: metrics.regionsOcr,
-    skippedRegions: metrics.regionsSkipped, retryRegions: metrics.retries,
-    progress: progressivePercent('fast_pass', index, total),
-    label: `กำลังเตรียมภาพ Block ${index + 1}/${total}`,
-  });
   const policy = shouldOcrRegion(region, { isCover: isCoverHardBlockDocument(configuration.documentType) });
   if (!policy.allow) {
     metrics.regionsSkipped += 1;
@@ -380,15 +300,7 @@ async function processRegion({ client, pool, jobId, region, index, total, page, 
   const attempts = [];
   const runVariants = async (prepared, phase) => {
     for (const variant of prepared.variants) {
-      throwIfAborted(configuration.signal);
       if (runId !== activeRun) throw new Error('BOOK_OCR_CANCELLED');
-      emitProgress(configuration, {
-        status: 'recognizing_text', stage: phase === 'retry' ? 'retry' : 'fast_pass',
-        page: configuration.pageNumber || 1, block: index + 1, totalBlocks: total,
-        textRegions: metrics.regionsOcr, skippedRegions: metrics.regionsSkipped, retryRegions: metrics.retries,
-        progress: progressivePercent(phase === 'retry' ? 'retry' : 'fast_pass', index, total),
-        label: `กำลังอ่าน Block ${index + 1}/${total} · ${variant.name}`,
-      });
       const hash = stableRegionHash({ fileHash, pageNumber: configuration.pageNumber, bbox: region.bbox, variant: variant.name, language: 'tha+eng' });
       let recognized = cache.get(hash);
       if (recognized) metrics.cacheHits += 1;
@@ -485,27 +397,12 @@ export async function processBookCoverCanvas(source, configuration = {}) {
   const jobId = `ocr-${runId}-${Date.now()}`;
   const metrics = createJobMetrics();
   const longTaskObserver = observeLongTasks(metrics);
-  const client = new PreprocessClient({
-    signal: configuration.signal,
-    onProgress(message) {
-      if (runId !== activeRun) return;
-      emitProgress(configuration, {
-        status: 'preprocess_heartbeat', stage: 'preprocess', page: Number(configuration.pageNumber || 1),
-        progress: Number(configuration.__lastProgress || 0.06),
-        label: message.label || message.status || 'Worker กำลังเตรียมภาพ',
-      });
-    },
-  });
+  const client = new PreprocessClient();
   activeClient = client;
   const workerLimits = concurrencyFor(profile());
   const pool = new TesseractPool(workerLimits.ocrWorkers, metrics, message => {
     if (runId !== activeRun) return;
-    sampleMemory(metrics);
-    emitProgress(configuration, {
-      status: 'worker_heartbeat', stage: 'worker', page: Number(configuration.pageNumber || 1),
-      progress: Number(configuration.__lastProgress || 0.18),
-      label: workerHeartbeatLabel(message),
-    });
+    if (message.status === 'recognizing text') sampleMemory(metrics);
   });
   activePool = pool;
   const cache = new Map();
@@ -531,13 +428,7 @@ export async function processBookCoverCanvas(source, configuration = {}) {
       retryRegions: 0, progress: progressivePercent('region_detection', 1, 1),
       label: `พบ Text Region ${regions.length - metrics.regionsSkipped} จุด · ข้ามรูป ${metrics.regionsSkipped} จุด`,
     });
-    emitProgress(configuration, {
-      status: 'worker_start', stage: 'worker', page: pageNumber, progress: Number(configuration.__lastProgress || 0.18),
-      textRegions: regions.length - metrics.regionsSkipped, skippedRegions: metrics.regionsSkipped, retryRegions: 0,
-      label: `กำลังเริ่ม OCR Worker ${workerLimits.ocrWorkers} ตัว`,
-    });
     await pool.start();
-    throwIfAborted(configuration.signal);
     const page = { width: source.width, height: source.height };
     const textRegions = regions.filter(region => shouldOcrRegion(region, { isCover }).allow);
     const skippedBlocks = regions.filter(region => !shouldOcrRegion(region, { isCover }).allow).map((region, index) => ({
@@ -619,18 +510,17 @@ export async function processBookCoverCanvas(source, configuration = {}) {
   }
 }
 
-export async function cancelBookCoverOcr(options = {}) {
+export async function cancelBookCoverOcr() {
   activeRun += 1;
-  const jobs = [
+  await Promise.allSettled([
     activePool?.cancel(),
     activeClient ? activeClient.cancel(`ocr-${activeRun - 1}`) : null,
-  ];
-  if (options.skipLegacy !== true) jobs.push(cancelLegacy());
-  await Promise.allSettled(jobs);
+    cancelLegacy(),
+  ]);
   activeClient?.terminate();
   activeClient = null;
   activePool = null;
   for (const url of activeObjectUrls) URL.revokeObjectURL(url);
   activeObjectUrls.clear();
-  if (options.silent !== true) window.dispatchEvent(new CustomEvent('ripscan:ocr-cancelled'));
+  window.dispatchEvent(new CustomEvent('ripscan:ocr-cancelled'));
 }

@@ -6,7 +6,6 @@ import {
   detectGibberish,
 } from './cover-ocr-core.mjs';
 import { analyzeThaiGraphemes, preserveTextSymbols } from './book-ocr-core.mjs';
-import { loadTesseract } from './lazy-libraries.mjs';
 
 const pageState = new WeakMap();
 let regionSequence = 0;
@@ -259,7 +258,7 @@ function scriptConfidence(text, language) {
 
 async function recognizeRegion(panel, pageCard, region) {
   const image = pageImage(pageCard);
-  if (!image) throw new Error('ไม่พบภาพสำหรับ OCR');
+  if (!image || !window.Tesseract?.createWorker) throw new Error('ระบบ OCR ยังไม่พร้อม');
   const button = $('[data-cover-action="recognize"]', panel);
   if (button) { button.disabled = true; button.textContent = 'กำลังอ่าน…'; }
   const bitmap = await imageBitmapFor(image);
@@ -278,7 +277,7 @@ async function recognizeRegion(panel, pageCard, region) {
     { variant: 'Text Mask', canvas: mask },
   ].filter(item => plan.includes(item.variant));
   const langs = region.language === 'eng' || region.language === 'number' ? ['eng'] : region.language === 'tha+eng' ? ['tha', 'eng'] : ['tha'];
-  const worker = await (await loadTesseract()).createWorker(langs, 1, { cacheMethod: 'write' });
+  const worker = await window.Tesseract.createWorker(langs, 1, { cacheMethod: 'write' });
   await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '7' });
   if (region.language === 'number') await worker.setParameters({ tessedit_char_whitelist: '0123456789๐๑๒๓๔๕๖๗๘๙ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-–—−_/|:.,()' });
   const attempts = [];

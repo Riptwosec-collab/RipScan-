@@ -1,5 +1,3 @@
-import { loadJsZip, loadTesseract } from './lazy-libraries.mjs';
-
 const results = document.querySelector('#results');
 const languageSelect = document.querySelector('#language');
 const statusBox = document.querySelector('#status');
@@ -184,12 +182,12 @@ async function rotatePage(state, page) {
 }
 
 async function rerunPage(state, page) {
+  if (!window.Tesseract?.createWorker) return showError('โหลดระบบ OCR ไม่สำเร็จ');
   busy(true, `กำลัง OCR หน้า ${state.pages.indexOf(page) + 1} ใหม่…`);
   let worker;
   try {
     const langs = languageSelect.value === 'en' ? ['eng'] : languageSelect.value === 'th' ? ['tha'] : ['tha', 'eng'];
-    const tesseract = await loadTesseract();
-    worker = await tesseract.createWorker(langs, 1, { logger: message => { if (message.status === 'recognizing text') statusText.textContent = `OCR ใหม่ ${Math.round((message.progress || 0) * 100)}%`; } });
+    worker = await window.Tesseract.createWorker(langs, 1, { logger: message => { if (message.status === 'recognizing text') statusText.textContent = `OCR ใหม่ ${Math.round((message.progress || 0) * 100)}%`; } });
     const response = await worker.recognize(pageImage(page));
     page.textarea.value = String(response.data.text || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
     page.textarea.dispatchEvent(new Event('input', { bubbles: true }));
@@ -260,7 +258,7 @@ function markdown(rows, title) { return `# ${title}\n\n${rows.map(row => `## ห
 function html(rows, title) { return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{font-family:system-ui,'Noto Sans Thai',sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.7}.page{page-break-after:always;border-bottom:1px solid #ddd;padding-bottom:30px;margin-bottom:30px}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>${escapeHtml(title)}</h1>${rows.map(row => `<section class="page"><h2>หน้า ${row.page}</h2><pre>${escapeHtml(row.text)}</pre></section>`).join('')}</body></html>`; }
 function csv(rows) { return ['Document,Page,Original Page,Confidence,Text', ...rows.map(row => [row.document, row.page, row.originalPage, row.confidence, row.text].map(csvCell).join(','))].join('\r\n'); }
 async function docx(rows, title) {
-  const JSZip = await loadJsZip(); const zip = new JSZip();
+  if (!window.JSZip) throw new Error('โหลดระบบ DOCX ไม่สำเร็จ'); const zip = new window.JSZip();
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
   zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
   const body = [`<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${escapeXml(title)}</w:t></w:r></w:p>`, ...rows.flatMap((row, index) => [`<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>หน้า ${row.page}</w:t></w:r></w:p>`, ...String(row.text).split('\n').map(line => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line || ' ')}</w:t></w:r></w:p>`), index < rows.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''])].join('');
@@ -268,7 +266,7 @@ async function docx(rows, title) {
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 async function xlsx(rows) {
-  const JSZip = await loadJsZip(); const zip = new JSZip();
+  if (!window.JSZip) throw new Error('โหลดระบบ XLSX ไม่สำเร็จ'); const zip = new window.JSZip();
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`);
   zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
   zip.folder('xl').file('workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="OCR Results" sheetId="1" r:id="rId1"/></sheets></workbook>`);
@@ -295,9 +293,9 @@ async function exportRows(state, onlySelected) {
   if (format === 'pdf') return printablePdf(rows, state.filename);
 }
 async function imageZip(state) {
-  const pages = selectedPages(state, true); if (!pages.length) return showError('กรุณาเลือกอย่างน้อย 1 หน้า'); const JSZip = await loadJsZip();
+  const pages = selectedPages(state, true); if (!pages.length) return showError('กรุณาเลือกอย่างน้อย 1 หน้า'); if (!window.JSZip) return showError('โหลดระบบ ZIP ไม่สำเร็จ');
   busy(true, 'กำลังรวมรูปหน้าที่เลือก…');
-  try { const zip = new JSZip(); for (let i = 0; i < pages.length; i += 1) zip.file(`page-${String(i + 1).padStart(3, '0')}.jpg`, await fetch(pageImage(pages[i])).then(r => r.blob())); downloadBlob(await zip.generateAsync({ type: 'blob' }), `${safeName(state.filename)}-pages.zip`); } finally { busy(false); }
+  try { const zip = new window.JSZip(); for (let i = 0; i < pages.length; i += 1) zip.file(`page-${String(i + 1).padStart(3, '0')}.jpg`, await fetch(pageImage(pages[i])).then(r => r.blob())); downloadBlob(await zip.generateAsync({ type: 'blob' }), `${safeName(state.filename)}-pages.zip`); } finally { busy(false); }
 }
 
 results.addEventListener('click', async event => {

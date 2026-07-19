@@ -54,7 +54,7 @@ PDF · Searchable PDF via browser print · JPG · PNG · DOCX · XLSX · TXT · 
 
 ```js
 {
-  version: '3.3.0',
+  version: '3.0.0',
   id,
   name,
   sourceType,
@@ -246,4 +246,4 @@ uvicorn api.index:app --host 0.0.0.0 --port 8000
 2. ตรวจ Syntax ทุกโมดูล
 3. สร้าง `dist/`
 4. Inject Document Studio CSS/JS
-5. Cache Asset ด้วย PWA `ripscan-pwa-v3.3.1`
+5. Cache Asset ด้วย PWA `ripscan-pwa-v3.0.0`

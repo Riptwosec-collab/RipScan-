@@ -1,4 +1,3 @@
-import { loadTesseract } from './lazy-libraries.mjs';
 import {
   processBookCoverCanvas as processReviewFirstCover,
   cancelBookCoverOcr as cancelReviewFirstCover,
@@ -169,8 +168,8 @@ function typeForZone(zone, text, bbox, page) {
 
 async function getWorker() {
   if (hardBlockWorker) return hardBlockWorker;
-  const tesseract = await loadTesseract();
-  hardBlockWorker = await tesseract.createWorker(['tha', 'eng'], 1, { cacheMethod: 'write' });
+  if (!window.Tesseract?.createWorker) throw new Error('ระบบ Cover Hard Block OCR ยังไม่พร้อม');
+  hardBlockWorker = await window.Tesseract.createWorker(['tha', 'eng'], 1, { cacheMethod: 'write' });
   await hardBlockWorker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
   return hardBlockWorker;
 }

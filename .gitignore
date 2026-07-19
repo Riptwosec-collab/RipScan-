@@ -3,7 +3,4 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-dist/
-node_modules/
-.vercel/
 .DS_Store

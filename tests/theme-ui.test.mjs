@@ -93,15 +93,13 @@ test('book-cover CSS is responsive and review focused', async () => {
   assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
 });
 
-test('PWA shell includes OCR table Studio and PDF Tool assets', async () => {
+test('PWA shell includes compact heading book OCR and automatic table assets', async () => {
   const serviceWorker = await read('web/sw.js');
-  assert.ok(serviceWorker.includes('ripscan-pwa-v4.1.0'));
+  assert.ok(serviceWorker.includes('ripscan-pwa-v2.3.0'));
   for (const asset of [
     "'/redesign.css'", "'/compact-home.css'", "'/book-ocr.css'", "'/theme-ui.js'",
     "'/verified-ui-fix.js'", "'/heading-auto.js'", "'/heading-structure.mjs'",
     "'/book-ocr-core.mjs'", "'/book-ocr-browser.mjs'", "'/book-ocr-ui.js'",
     "'/table-auto.css'", "'/table-structure-core.mjs'", "'/table-auto-ui.js'",
-    "'/table-reconstruction-core.mjs'", "'/table-reconstruction-worker.js'", "'/table-review-v312.js'",
-    "'/document-studio.js'", "'/pdf-tools-ui.js'", "'/pdf-worker.js'", "'/roundtrip-export.mjs'",
   ]) assert.ok(serviceWorker.includes(asset), `missing ${asset}`);
 });

@@ -1,12 +1,12 @@
-export const OCR_PERFORMANCE_VERSION = '2.3.0';
+export const OCR_PERFORMANCE_VERSION = '2.2.0';
 
 export const OCR_LIMITS = Object.freeze({
   fastPassMaxSide: 2200,
   fastPageDpi: 180,
   retryPageDpi: 300,
-  regionTimeoutMs: 30_000,
-  retryTimeoutMs: 45_000,
-  pageTimeoutMs: 5 * 60_000,
+  regionTimeoutMs: 15_000,
+  retryTimeoutMs: 20_000,
+  pageTimeoutMs: 60_000,
   watchdogMs: 10_000,
   progressThrottleMs: 160,
   maxRetry: 1,

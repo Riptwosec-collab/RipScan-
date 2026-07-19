@@ -1,4 +1,3 @@
-import { loadTesseract } from './lazy-libraries.mjs';
 import {
   processBookCoverCanvas as processBaseBookCoverCanvas,
   cancelBookCoverOcr as cancelBaseBookCoverOcr,
@@ -158,8 +157,8 @@ function inferTypeFromZone(zone, text, bbox, page) {
 
 async function getRecoveryWorker() {
   if (recoveryWorker) return recoveryWorker;
-  const tesseract = await loadTesseract();
-  recoveryWorker = await tesseract.createWorker(['tha', 'eng'], 1, { cacheMethod: 'write' });
+  if (!window.Tesseract?.createWorker) throw new Error('ระบบ OCR Recovery ยังไม่พร้อม');
+  recoveryWorker = await window.Tesseract.createWorker(['tha', 'eng'], 1, { cacheMethod: 'write' });
   await recoveryWorker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
   return recoveryWorker;
 }
