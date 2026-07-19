@@ -1,4 +1,8 @@
 import { documentToPlainText, getTableCell } from './document-model.mjs';
+import { loadJsZip } from './lazy-libraries.mjs';
+
+const LIBRARY_TIMEOUT_MS = 15_000;
+const MAX_EXPORT_PIXELS = 16_000_000;
 
 export const EXPORT_PRESETS = {
   A4: { width: 794, height: 1123 },
@@ -52,11 +56,15 @@ export function calculateOutputSize(sourceWidth, sourceHeight, options = {}) {
       height = sourceH * scale;
     }
   }
+  const requestedCanvasWidth = Math.max(1, Math.round(width * normalized.dpi / 96));
+  const requestedCanvasHeight = Math.max(1, Math.round(height * normalized.dpi / 96));
+  const requestedPixels = requestedCanvasWidth * requestedCanvasHeight;
+  const canvasScale = requestedPixels > MAX_EXPORT_PIXELS ? Math.sqrt(MAX_EXPORT_PIXELS / requestedPixels) : 1;
   return {
     width: Math.max(1, Math.round(width)),
     height: Math.max(1, Math.round(height)),
-    canvasWidth: Math.max(1, Math.round(width * normalized.dpi / 96)),
-    canvasHeight: Math.max(1, Math.round(height * normalized.dpi / 96)),
+    canvasWidth: Math.max(1, Math.round(requestedCanvasWidth * canvasScale)),
+    canvasHeight: Math.max(1, Math.round(requestedCanvasHeight * canvasScale)),
     options: normalized,
   };
 }
@@ -85,28 +93,36 @@ export function loadExternalScript(src, globalName = '') {
   if (globalName && globalThis[globalName]) return Promise.resolve(globalThis[globalName]);
   if (scriptPromises.has(src)) return scriptPromises.get(src);
   const promise = new Promise((resolve, reject) => {
+    let timer;
+    const finish = callback => value => { clearTimeout(timer); callback(value); };
     const existing = document.querySelector(`script[src="${src}"]`);
+    const script = existing || document.createElement('script');
+    const ready = () => globalName ? globalThis[globalName] : true;
+    const complete = finish(value => value ? resolve(value) : reject(new Error(`LIBRARY_NOT_READY:${globalName || src}`)));
+    const fail = finish(reason => reject(new Error(`LIBRARY_${reason}:${globalName || src}`)));
+    timer = setTimeout(() => fail('LOAD_TIMEOUT'), LIBRARY_TIMEOUT_MS);
+    if (ready()) return complete(ready());
     if (existing) {
-      existing.addEventListener('load', () => resolve(globalName ? globalThis[globalName] : true), { once: true });
-      existing.addEventListener('error', () => reject(new Error(`โหลด ${src} ไม่สำเร็จ`)), { once: true });
+      existing.addEventListener('load', () => complete(ready()), { once: true });
+      existing.addEventListener('error', () => fail('LOAD_FAILED'), { once: true });
       return;
     }
-    const script = document.createElement('script');
     script.src = src;
     script.async = true;
-    script.onload = () => resolve(globalName ? globalThis[globalName] : true);
-    script.onerror = () => reject(new Error(`โหลด ${src} ไม่สำเร็จ`));
+    script.onload = () => complete(ready());
+    script.onerror = () => fail('LOAD_FAILED');
     document.head.append(script);
-  });
+  }).finally(() => scriptPromises.delete(src));
   scriptPromises.set(src, promise);
   return promise;
 }
 
-export async function ensureStudioLibraries({ xlsx = false, render = false, pdf = false } = {}) {
+export async function ensureStudioLibraries({ xlsx = false, render = false, pdf = false, zip = false } = {}) {
   const jobs = [];
-  if (xlsx && !globalThis.XLSX) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/@e965/xlsx@0.20.3/dist/xlsx.full.min.js', 'XLSX'));
-  if (render && !globalThis.html2canvas) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'html2canvas'));
-  if (pdf && !globalThis.jspdf?.jsPDF) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js', 'jspdf'));
+  if (zip && !globalThis.JSZip) jobs.push(loadJsZip());
+  if (xlsx && !globalThis.XLSX) jobs.push(loadExternalScript('/vendor/xlsx.full.min.js', 'XLSX'));
+  if (render && !globalThis.html2canvas) jobs.push(loadExternalScript('/vendor/html2canvas.min.js', 'html2canvas'));
+  if (pdf && !globalThis.jspdf?.jsPDF) jobs.push(loadExternalScript('/vendor/jspdf.umd.min.js', 'jspdf'));
   await Promise.all(jobs);
 }
 
@@ -167,6 +183,7 @@ export async function exportPageElements(elements, pages, options = {}, filename
   if (normalized.format === 'docx') {
     const documentModel = options.documentModel;
     if (!documentModel) throw new Error('ไม่พบ Document Model สำหรับ DOCX');
+    await ensureStudioLibraries({ zip: true });
     return downloadBlob(await modelToDocxBlob(documentModel), `${base}.docx`);
   }
   if (normalized.format === 'xlsx') {
@@ -207,7 +224,7 @@ export async function exportPageElements(elements, pages, options = {}, filename
     canvas.height = 1;
   }
   if (blobs.length === 1) return downloadBlob(blobs[0], `${base}.${format === 'jpg' ? 'jpg' : 'png'}`);
-  if (!globalThis.JSZip) throw new Error('โหลดระบบ ZIP ไม่สำเร็จ');
+  await ensureStudioLibraries({ zip: true });
   const zip = new globalThis.JSZip();
   blobs.forEach((blob, index) => zip.file(`page-${String(index + 1).padStart(3, '0')}.${format === 'jpg' ? 'jpg' : 'png'}`, blob));
   downloadBlob(await zip.generateAsync({ type: 'blob' }), `${base}-${format}-pages.zip`);
@@ -447,7 +464,7 @@ function wordSection(page) {
 }
 
 export async function modelToDocxBlob(documentModel) {
-  if (!globalThis.JSZip) throw new Error('โหลดระบบ DOCX ไม่สำเร็จ');
+  await ensureStudioLibraries({ zip: true });
   const zip = new globalThis.JSZip();
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
   zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);

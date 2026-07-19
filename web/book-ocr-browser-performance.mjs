@@ -141,10 +141,19 @@ class TesseractPool {
   }
 
   async createSlot(index) {
-    const worker = await window.Tesseract.createWorker(['tha', 'eng'], 1, {
+    let timedOut = false;
+    const workerPromise = window.Tesseract.createWorker(['tha', 'eng'], 1, {
       cacheMethod: 'write',
       logger: message => this.onLogger?.({ ...message, workerIndex: index }),
     });
+    workerPromise.then(worker => { if (timedOut) worker.terminate?.(); }).catch(() => {});
+    let worker;
+    try {
+      worker = await withTimeout(() => workerPromise, 25_000, () => { timedOut = true; this.metrics.timedOut += 1; });
+    } catch (error) {
+      try { await workerPromise.then(created => created.terminate?.()); } catch {}
+      throw error;
+    }
     await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_pageseg_mode: '6' });
     return { index, worker, tail: Promise.resolve(), pending: 0, generation: 0 };
   }
