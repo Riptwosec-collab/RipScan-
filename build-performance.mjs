@@ -279,12 +279,16 @@ await writeFile(preprocessPath, preprocess, 'utf8');
 
 const progressUiPath = 'dist/performance-v22-ui.js';
 let progressUi = await readFile(progressUiPath, 'utf8');
-progressUi = replaceRequired(
-  progressUi,
-  '      Promise.resolve(window.RipScanBookOCR?.cancel?.()),',
-  "      Promise.allSettled([window.RipScanBookOCR?.cancel?.(), window.RipScanLegacyOCR?.cancel?.(), window.RipScanPerformanceRuntime?.cancelAll?.('USER_CANCELLED')]),",
-  'global cancel propagation',
-);
+const hasGlobalCancel = progressUi.includes('RipScanLegacyOCR?.cancel?.()')
+  && progressUi.includes('RipScanPerformanceRuntime?.cancelAll?.(');
+if (!hasGlobalCancel) {
+  progressUi = replaceRequired(
+    progressUi,
+    '      Promise.resolve(window.RipScanBookOCR?.cancel?.()),',
+    "      Promise.allSettled([window.RipScanBookOCR?.cancel?.(), window.RipScanLegacyOCR?.cancel?.(), window.RipScanPerformanceRuntime?.cancelAll?.('USER_CANCELLED')]),",
+    'global cancel propagation',
+  );
+}
 await writeFile(progressUiPath, progressUi, 'utf8');
 
 const indexPath = 'dist/index.html';

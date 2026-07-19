@@ -7,9 +7,11 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('emergency OCR wrapper lazy-loads Tesseract and uses shared bounded scheduler', async () => {
   const source = await read('web/book-ocr-browser-emergency.mjs');
   for (const required of [
-    "loadTesseract()", "scheduler().schedule('heavy'", 'timeoutMs: 65_000',
+    "loadTesseract()", "scheduler().schedule('heavy'", 'SCHEDULER_STARTUP_GRACE_MS = 3 * 60_000',
+    'OCR_LIMITS.pageTimeoutMs + SCHEDULER_STARTUP_GRACE_MS',
     'maxVariantsPerRegion: safeMode ? 2 : 4', 'scheduler().cancel', 'RipScanBookOCR',
   ]) assert.ok(source.includes(required), `missing emergency OCR guard ${required}`);
+  assert.ok(!source.includes('timeoutMs: 65_000'), 'obsolete 65-second whole-page timeout must not return');
 });
 
 test('performance guard detects long tasks safe mode duplicate jobs and cleanup', async () => {
