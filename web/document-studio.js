@@ -39,6 +39,25 @@ const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.docx,.xlsx,.xls
 const DB_NAME = 'ripscan-document-studio';
 const DB_STORE = 'documents';
 const MAX_HISTORY = 50;
+const PDFJS_URL = '/vendor/pdf.min.mjs';
+const PDFJS_WORKER_URL = '/vendor/pdf.worker.min.mjs';
+let pdfJsPromise = null;
+
+function loadPdfLibrary() {
+  if (pdfJsPromise) return pdfJsPromise;
+  let timer;
+  pdfJsPromise = Promise.race([
+    import(PDFJS_URL),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('โหลดระบบ PDF นานเกิน 20 วินาที กรุณาลองใหม่')), 20_000); }),
+  ]).finally(() => clearTimeout(timer)).then(pdfjs => {
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+    return pdfjs;
+  }).catch(error => {
+    pdfJsPromise = null;
+    throw error;
+  });
+  return pdfJsPromise;
+}
 
 const state = {
   model: null,
@@ -208,8 +227,7 @@ async function importImageFile(file, { onProgress = () => {} } = {}) {
 }
 
 async function importPdfFile(file, { onProgress = () => {}, token } = {}) {
-  const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  const pdfjs = await loadPdfLibrary();
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const documentModel = createDocument({ name: file.name, sourceType: 'pdf', metadata: { visualSource: true, pageCount: pdf.numPages } });
   try {

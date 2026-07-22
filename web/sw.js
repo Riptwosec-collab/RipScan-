@@ -13,6 +13,7 @@ const APP_SHELL = [
   '/book-ocr.css',
   '/table-auto.css',
   '/app.js',
+  '/ocr-runtime-guard.js',
   '/upgrade.js',
   '/advanced.js',
   '/ocr-core.mjs',
@@ -32,10 +33,16 @@ const APP_SHELL = [
   '/icon-512.svg',
 ];
 const OFFLINE_REMOTE = [
-  'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js',
-  'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs',
+  '/vendor/tesseract.min.js',
+  '/vendor/worker.min.js',
+  '/vendor/tessdata/tha.traineddata.gz',
+  '/vendor/tessdata/eng.traineddata.gz',
+  '/vendor/jszip.min.js',
+  '/vendor/pdf.min.mjs',
+  '/vendor/pdf.worker.min.mjs',
+  '/vendor/xlsx.full.min.js',
+  '/vendor/html2canvas.min.js',
+  '/vendor/jspdf.umd.min.js',
 ];
 
 self.addEventListener('install', event => {
@@ -53,7 +60,7 @@ self.addEventListener('activate', event => {
 async function cacheRemote(urls) {
   const cache = await caches.open(RUNTIME_CACHE);
   await Promise.allSettled(urls.map(async url => {
-    const request = new Request(url, { mode: 'cors', credentials: 'omit' });
+    const request = new Request(new URL(url, self.location.origin), { credentials: 'same-origin' });
     const response = await fetch(request);
     if (response.ok || response.type === 'opaque') await cache.put(request, response.clone());
   }));

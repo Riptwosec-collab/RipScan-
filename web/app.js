@@ -1,6 +1,29 @@
-import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
+const PDFJS_URL = '/vendor/pdf.min.mjs';
+const PDFJS_WORKER_URL = '/vendor/pdf.worker.min.mjs';
+let pdfJsPromise = null;
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+function withLoadTimeout(promise, timeoutMs, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeoutMs); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function loadPdfJs() {
+  if (!pdfJsPromise) {
+    pdfJsPromise = withLoadTimeout(import(PDFJS_URL), 20_000, 'โหลดระบบ PDF นานเกิน 20 วินาที กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่')
+      .then(pdfjs => {
+        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        return pdfjs;
+      })
+      .catch(error => {
+        pdfJsPromise = null;
+        throw error;
+      });
+  }
+  return pdfJsPromise;
+}
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -467,6 +490,7 @@ async function renderPdfPage(page) {
 }
 
 async function processPdf(file, fileIndex) {
+  const pdfjsLib = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjsLib.getDocument({ data });
   const pdf = await loadingTask.promise;
@@ -668,8 +692,11 @@ function downloadText(text, filename) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
   link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1500);
 }
 
 async function cleanupWorker() {

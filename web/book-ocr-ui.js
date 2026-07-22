@@ -289,7 +289,8 @@ function enhanceResults() {
   const pageCards = [...document.querySelectorAll('.page-card')];
   const clearPages = document.querySelector('#clearScanPagesButton');
   if (clearPages) clearPages.disabled = pageCards.length === 0;
-  pageCards.forEach(pageCard => enqueuePage(pageCard));
+  const advancedMode = options.mode !== 'text_only' || options.readTextOnImages;
+  if (advancedMode) pageCards.forEach(pageCard => enqueuePage(pageCard));
 }
 
 async function rerunBlock(pageCard, blockId) {
@@ -393,7 +394,10 @@ function handleBookAction(event) {
 ensureStylesheet();
 installOptions();
 document.addEventListener('change', event => {
-  if (event.target.closest('#bookOcrOptions')) readControlOptions(document.querySelector('#bookOcrOptions'));
+  if (event.target.closest('#bookOcrOptions')) {
+    readControlOptions(document.querySelector('#bookOcrOptions'));
+    enhanceResults();
+  }
 });
 document.addEventListener('click', event => {
   if (event.target.closest('#clearScanPagesButton')) clearScanPages();
@@ -408,6 +412,6 @@ enhanceResults();
 window.RipScanBookOCR = Object.freeze({
   getOptions: () => ({ ...options }),
   clearScanPages,
-  processVisiblePages: enhanceResults,
+  processVisiblePages: () => [...document.querySelectorAll('.page-card')].forEach(pageCard => enqueuePage(pageCard)),
   cancel: cancelBookCoverOcr,
 });

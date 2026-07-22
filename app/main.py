@@ -110,16 +110,19 @@ async def run_ocr(files: list[UploadFile] = File(...), language: str = "auto") -
     if len(files)>MAX_FILES: raise HTTPException(status_code=400,detail=f"อัปโหลดได้ไม่เกิน {MAX_FILES} ไฟล์ต่อครั้ง")
     ocr_language=LANGUAGE_MAP.get(language)
     if not ocr_language: raise HTTPException(status_code=400,detail="ภาษาที่เลือกไม่ถูกต้อง")
-    missing=[item for item in ocr_language.split("+") if item not in _available_languages()]
-    if missing: raise HTTPException(status_code=503,detail=f"Tesseract ยังไม่มีภาษา: {', '.join(missing)}")
+    missing=None
     output=[]
     for upload in files:
         content=await upload.read(MAX_FILE_SIZE_MB*1024*1024+1)
         if len(content)>MAX_FILE_SIZE_MB*1024*1024: raise HTTPException(status_code=413,detail=f"ไฟล์ {upload.filename} ใหญ่เกิน {MAX_FILE_SIZE_MB} MB")
         mime_type=upload.content_type or "application/octet-stream"
+        if mime_type!="application/pdf" and not content.startswith(b"%PDF") and mime_type not in IMAGE_TYPES:
+            raise HTTPException(status_code=415,detail=f"ไม่รองรับไฟล์ {upload.filename}")
+        if missing is None:
+            missing=[item for item in ocr_language.split("+") if item not in _available_languages()]
+            if missing: raise HTTPException(status_code=503,detail=f"Tesseract ยังไม่มีภาษา: {', '.join(missing)}")
         if mime_type=="application/pdf" or content.startswith(b"%PDF"): pages=_process_pdf(content,ocr_language); mime_type="application/pdf"
-        elif mime_type in IMAGE_TYPES: pages=_process_image(content,ocr_language)
-        else: raise HTTPException(status_code=415,detail=f"ไม่รองรับไฟล์ {upload.filename}")
+        else: pages=_process_image(content,ocr_language)
         confidence_values=[page.confidence for page in pages if page.text]
         output.append(DocumentResult(filename=upload.filename or "document",mimeType=mime_type,pageCount=len(pages),fullText="\n\n".join(page.text for page in pages).strip(),confidence=mean(confidence_values) if confidence_values else 0.0,pages=pages))
     return output

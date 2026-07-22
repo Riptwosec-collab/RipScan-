@@ -143,7 +143,7 @@ function exportData(validation, format) {
       cell.rowSpan = issue.rowSpan; cell.columnSpan = issue.columnSpan; cell.status = issue.status; cell.confidence = issue.finalConfidence; cell.columnType = issue.columnType; cell.languageSegments = issue.segments;
     });
     const blob = format === 'csv' ? new Blob([exportDelimited(matrix, config().delimiter, { bom: true })], { type: 'text/csv;charset=utf-8' }) : new Blob([JSON.stringify(model, null, 2)], { type: 'application/json;charset=utf-8' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `ripscan-verified-table.${format}`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `ripscan-verified-table.${format}`; link.hidden = true; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1500);
   } catch (error) { showError(error.message); }
 }
 

@@ -20,7 +20,7 @@ test('production build injects layout OCR table and Document Studio assets', asy
     '/document-studio.js',
     '/book-ocr-ui.js',
     'class="hero-support"',
-    'ripscan-pwa-v3.0.0',
+    'ripscan-pwa-v3.0.2',
     'cover-ocr-core.mjs',
     'cover-recovery-core.mjs',
     'cover-hard-block.mjs',

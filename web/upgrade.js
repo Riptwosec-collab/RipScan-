@@ -19,7 +19,7 @@ function pageText(page) { return page.textarea?.value || ''; }
 function pageImage(page) { return page.image?.src || ''; }
 function getState(card) { return managed.get(card); }
 function selectedPages(state, onlySelected = false) { return onlySelected ? state.pages.filter(page => page.selected) : state.pages; }
-function downloadBlob(blob, filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1500); }
+function downloadBlob(blob, filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.hidden = true; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500); }
 function downloadText(text, filename, type = 'text/plain;charset=utf-8') { downloadBlob(new Blob([text], { type }), filename); }
 function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 

@@ -249,6 +249,8 @@ async function autoAnalyzePage(pageCard) {
   if (activeTasks.has(pageCard)) return activeTasks.get(pageCard);
   const task = (async () => {
     simplifyPageActions(pageCard);
+    const readingMode = document.querySelector('#bookOcrMode')?.value || 'text_only';
+    if (readingMode !== 'table_only' && readingMode !== 'all') return;
     const image = pageCard.querySelector('img.page-preview');
     const evidence = await imageGridEvidence(image).catch(() => ({ likelyTable: false, score: 0 }));
     pageCard.dataset.tableEvidence = Number(evidence.score || 0).toFixed(3);
@@ -294,6 +296,14 @@ function scan() {
 
 results?.addEventListener('input', event => {
   if (event.isTrusted && event.target.matches('textarea.page-text')) event.target.dataset.userEdited = 'true';
+});
+
+document.addEventListener('change', event => {
+  if (event.target.id !== 'bookOcrMode' || !['table_only', 'all'].includes(event.target.value)) return;
+  results?.querySelectorAll('.page-card').forEach(pageCard => {
+    scheduledPages.delete(pageCard);
+    schedulePage(pageCard);
+  });
 });
 
 if (results) {

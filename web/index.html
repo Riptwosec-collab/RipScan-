@@ -191,8 +191,9 @@
     <input id="verifiedDelimiter" type="hidden" value=",">
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script async data-ripscan-tesseract src="/vendor/tesseract.min.js"></script>
+  <script async src="/vendor/jszip.min.js"></script>
+  <script src="/ocr-runtime-guard.js"></script>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/upgrade.js"></script>
   <script type="module" src="/advanced.js"></script>

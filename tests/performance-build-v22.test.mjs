@@ -17,7 +17,7 @@ test('production build wires performance pipeline table automation Document Stud
     '/table-auto.css',
     '/document-studio.js',
     '/document-studio.css',
-    'ripscan-pwa-v3.0.0',
+    'ripscan-pwa-v3.0.2',
   ]) assert.ok(build.includes(required), `missing ${required}`);
 });
 

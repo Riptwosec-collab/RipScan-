@@ -99,7 +99,8 @@ async function cancelAllOcr() {
 }
 
 function patchTesseractWorkers() {
-  if (!window.Tesseract?.createWorker || window.Tesseract.__ripscanPatched) return;
+  if (!window.Tesseract?.createWorker) return false;
+  if (window.Tesseract.__ripscanPatched) return true;
   const originalCreateWorker = window.Tesseract.createWorker.bind(window.Tesseract);
   window.Tesseract.createWorker = async function patchedCreateWorker(langs, oem, options = {}, config) {
     const originalLogger = options?.logger;
@@ -132,6 +133,7 @@ function patchTesseractWorkers() {
     return worker;
   };
   window.Tesseract.__ripscanPatched = true;
+  return true;
 }
 
 function getManagedPages(card, selectedOnly = false) {
@@ -572,7 +574,10 @@ function downloadBlob(blob, filename) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 1500);
 }
 
@@ -784,7 +789,9 @@ runButton?.addEventListener('click', () => {
   clearError();
 }, true);
 
-patchTesseractWorkers();
+if (!patchTesseractWorkers()) {
+  document.querySelector('script[data-ripscan-tesseract]')?.addEventListener('load', patchTesseractWorkers, { once: true });
+}
 installPerformanceControls();
 installPwaControls();
 observeResults();

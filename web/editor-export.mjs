@@ -69,7 +69,10 @@ export function downloadBlob(blob, filename) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 1500);
 }
 
@@ -83,19 +86,41 @@ const scriptPromises = new Map();
 export function loadExternalScript(src, globalName = '') {
   if (globalName && globalThis[globalName]) return Promise.resolve(globalThis[globalName]);
   if (scriptPromises.has(src)) return scriptPromises.get(src);
+  let script;
   const promise = new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener('load', () => resolve(globalName ? globalThis[globalName] : true), { once: true });
-      existing.addEventListener('error', () => reject(new Error(`โหลด ${src} ไม่สำเร็จ`)), { once: true });
-      return;
+    script = existing || document.createElement('script');
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      script.removeEventListener('load', handleLoad);
+      script.removeEventListener('error', handleError);
+    };
+    const handleLoad = () => {
+      cleanup();
+      const value = globalName ? globalThis[globalName] : true;
+      if (value) resolve(value);
+      else reject(new Error(`โหลด ${globalName || src} แล้วแต่ระบบไม่พร้อมใช้งาน`));
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error(`โหลด ${src} ไม่สำเร็จ`));
+    };
+    script.addEventListener('load', handleLoad, { once: true });
+    script.addEventListener('error', handleError, { once: true });
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`โหลดระบบส่งออกนานเกิน 20 วินาที กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่`));
+    }, 20_000);
+    if (!existing) {
+      script.src = src;
+      script.async = true;
+      document.head.append(script);
     }
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.onload = () => resolve(globalName ? globalThis[globalName] : true);
-    script.onerror = () => reject(new Error(`โหลด ${src} ไม่สำเร็จ`));
-    document.head.append(script);
+  }).catch(error => {
+    scriptPromises.delete(src);
+    script?.remove();
+    throw error;
   });
   scriptPromises.set(src, promise);
   return promise;
@@ -103,9 +128,9 @@ export function loadExternalScript(src, globalName = '') {
 
 export async function ensureStudioLibraries({ xlsx = false, render = false, pdf = false } = {}) {
   const jobs = [];
-  if (xlsx && !globalThis.XLSX) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX'));
-  if (render && !globalThis.html2canvas) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'html2canvas'));
-  if (pdf && !globalThis.jspdf?.jsPDF) jobs.push(loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js', 'jspdf'));
+  if (xlsx && !globalThis.XLSX) jobs.push(loadExternalScript('/vendor/xlsx.full.min.js', 'XLSX'));
+  if (render && !globalThis.html2canvas) jobs.push(loadExternalScript('/vendor/html2canvas.min.js', 'html2canvas'));
+  if (pdf && !globalThis.jspdf?.jsPDF) jobs.push(loadExternalScript('/vendor/jspdf.umd.min.js', 'jspdf'));
   await Promise.all(jobs);
 }
 
