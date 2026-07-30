@@ -1,3 +1,6 @@
+import { modelToDocxBlob, modelToXlsxBlob } from './editor-export.mjs';
+import { ocrRowsToDocumentModel, tableRecordsToBlock } from './ocr-layout.mjs';
+
 const results = document.querySelector('#results');
 const languageSelect = document.querySelector('#language');
 const statusBox = document.querySelector('#status');
@@ -8,7 +11,6 @@ const urls = new Set();
 let dragInfo = null;
 
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-const escapeXml = value => String(value).replace(/[<>&'"]/g, char => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[char]));
 const safeName = value => String(value || 'ripscan').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-');
 const showError = message => { errorBox.textContent = message; errorBox.hidden = false; };
 const clearError = () => { errorBox.hidden = true; };
@@ -31,6 +33,7 @@ function makePage(card, pageCard, index) {
     card: pageCard,
     textarea: pageCard.querySelector('textarea.page-text'),
     image: pageCard.querySelector('img.page-preview'),
+    ocrPage: window.__ripscanOcrPages?.get(pageCard) || null,
     selected: true,
     originalPage: index + 1,
   };
@@ -249,33 +252,77 @@ async function applyCrop(state) {
   } finally { busy(false); }
 }
 
+function tableRecords(table) {
+  const occupancy = [];
+  const records = [];
+  [...table.rows].forEach((row, rowIndex) => {
+    occupancy[rowIndex] ||= [];
+    let columnIndex = 0;
+    [...row.cells].forEach(cell => {
+      while (occupancy[rowIndex][columnIndex]) columnIndex += 1;
+      const rowSpan = Math.max(1, Number(cell.rowSpan || 1));
+      const columnSpan = Math.max(1, Number(cell.colSpan || 1));
+      const confidence = Math.max(0, Math.min(1, Number(cell.querySelector('small')?.textContent?.match(/[\d.]+/u)?.[0] || 100) / 100));
+      records.push({
+        rowIndex,
+        columnIndex,
+        rowSpan,
+        columnSpan,
+        text: cell.querySelector('span')?.textContent ?? cell.textContent ?? '',
+        confidence,
+        reviewStatus: cell.classList.contains('manual-cell') ? 'manual_review_required'
+          : cell.classList.contains('review-cell') || cell.classList.contains('low-confidence') ? 'review_required'
+            : 'verified',
+      });
+      for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+        occupancy[rowIndex + rowOffset] ||= [];
+        for (let columnOffset = 0; columnOffset < columnSpan; columnOffset += 1) {
+          occupancy[rowIndex + rowOffset][columnIndex + columnOffset] = true;
+        }
+      }
+      columnIndex += columnSpan;
+    });
+  });
+  return records;
+}
+
+function detectedTableBlocks(page, width, height) {
+  return [...page.card.querySelectorAll('.analysis-panel .detected-table')].map(table => {
+    const records = tableRecords(table);
+    const rows = Math.max(1, ...records.map(record => record.rowIndex + record.rowSpan));
+    return tableRecordsToBlock(records, {
+      x: 0,
+      y: 0,
+      width,
+      height: Math.min(height, Math.max(rows * 38, height * .2)),
+    });
+  });
+}
+
 function records(state, onlySelected) {
   const pages = selectedPages(state, onlySelected);
-  return pages.map((page, index) => ({ document: state.filename, page: index + 1, originalPage: page.originalPage, confidence: page.card.querySelector('.page-head span')?.textContent || '', text: pageText(page), image: pageImage(page) }));
+  return pages.map((page, index) => {
+    const layout = page.ocrPage?.layout || null;
+    const width = Math.max(1, Number(layout?.width || page.image?.naturalWidth || 794));
+    const height = Math.max(1, Number(layout?.height || page.image?.naturalHeight || 1123));
+    return {
+      document: state.filename,
+      page: index + 1,
+      originalPage: page.originalPage,
+      confidence: page.ocrPage?.confidence ?? (page.card.querySelector('.page-head span')?.textContent || ''),
+      text: pageText(page),
+      image: pageImage(page),
+      layout,
+      width,
+      height,
+      tables: detectedTableBlocks(page, width, height),
+    };
+  });
 }
 function plain(rows) { return rows.map(row => `===== หน้า ${row.page} =====\n\n${row.text}`).join('\n\n').trim(); }
 function markdown(rows, title) { return `# ${title}\n\n${rows.map(row => `## หน้า ${row.page}\n\n${row.text}`).join('\n\n---\n\n')}\n`; }
 function html(rows, title) { return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{font-family:system-ui,'Noto Sans Thai',sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.7}.page{page-break-after:always;border-bottom:1px solid #ddd;padding-bottom:30px;margin-bottom:30px}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>${escapeHtml(title)}</h1>${rows.map(row => `<section class="page"><h2>หน้า ${row.page}</h2><pre>${escapeHtml(row.text)}</pre></section>`).join('')}</body></html>`; }
 function csv(rows) { return ['Document,Page,Original Page,Confidence,Text', ...rows.map(row => [row.document, row.page, row.originalPage, row.confidence, row.text].map(csvCell).join(','))].join('\r\n'); }
-async function docx(rows, title) {
-  if (!window.JSZip) throw new Error('โหลดระบบ DOCX ไม่สำเร็จ'); const zip = new window.JSZip();
-  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
-  zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
-  const body = [`<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${escapeXml(title)}</w:t></w:r></w:p>`, ...rows.flatMap((row, index) => [`<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>หน้า ${row.page}</w:t></w:r></w:p>`, ...String(row.text).split('\n').map(line => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line || ' ')}</w:t></w:r></w:p>`), index < rows.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''])].join('');
-  zip.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr/></w:body></w:document>`);
-  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-}
-async function xlsx(rows) {
-  if (!window.JSZip) throw new Error('โหลดระบบ XLSX ไม่สำเร็จ'); const zip = new window.JSZip();
-  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`);
-  zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
-  zip.folder('xl').file('workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="OCR Results" sheetId="1" r:id="rId1"/></sheets></workbook>`);
-  zip.folder('xl').folder('_rels').file('workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`);
-  const data = [['Document','Page','Original Page','Confidence','Text'], ...rows.map(row => [row.document,row.page,row.originalPage,row.confidence,row.text])];
-  const sheetRows = data.map((row, r) => `<row r="${r + 1}">${row.map((value, c) => `<c r="${String.fromCharCode(65 + c)}${r + 1}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(String(value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''))}</t></is></c>`).join('')}</row>`).join('');
-  zip.folder('xl').folder('worksheets').file('sheet1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`);
-  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-}
 function printablePdf(rows, title) {
   const popup = window.open('', '_blank'); if (!popup) throw new Error('กรุณาอนุญาต Pop-up เพื่อบันทึก PDF');
   popup.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>@page{size:A4;margin:12mm}body{font-family:system-ui,'Noto Sans Thai',sans-serif;color:#111}.page{page-break-after:always}.page:last-child{page-break-after:auto}img{max-width:100%;max-height:55vh;display:block;margin:0 auto 14px}pre{white-space:pre-wrap;font:12pt/1.55 system-ui,'Noto Sans Thai',sans-serif;border-top:1px solid #ddd;padding-top:12px}</style></head><body>${rows.map(row => `<section class="page"><h2>${escapeHtml(title)} · หน้า ${row.page}</h2><img src="${row.image}"><pre>${escapeHtml(row.text)}</pre></section>`).join('')}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`); popup.document.close();
@@ -288,8 +335,11 @@ async function exportRows(state, onlySelected) {
   if (format === 'html') return downloadText(html(rows, state.filename), `${base}.html`, 'text/html;charset=utf-8');
   if (format === 'csv') return downloadText('\ufeff' + csv(rows), `${base}.csv`, 'text/csv;charset=utf-8');
   if (format === 'json') return downloadText(JSON.stringify({ document: state.filename, exportedAt: new Date().toISOString(), pages: rows }, null, 2), `${base}.json`, 'application/json;charset=utf-8');
-  if (format === 'docx') return downloadBlob(await docx(rows, state.filename), `${base}.docx`);
-  if (format === 'xlsx') return downloadBlob(await xlsx(rows), `${base}.xlsx`);
+  if (format === 'docx' || format === 'xlsx') {
+    const documentModel = ocrRowsToDocumentModel(rows, state.filename);
+    if (format === 'docx') return downloadBlob(await modelToDocxBlob(documentModel), `${base}.docx`);
+    return downloadBlob(await modelToXlsxBlob(documentModel), `${base}.xlsx`);
+  }
   if (format === 'pdf') return printablePdf(rows, state.filename);
 }
 async function imageZip(state) {

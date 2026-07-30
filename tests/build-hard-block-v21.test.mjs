@@ -7,7 +7,7 @@ const read = path => readFile(path, 'utf8');
 test('production build keeps OCR hard block and adds Document Studio v3', async () => {
   const build = await read('build.mjs');
   assert.match(build, /book-ocr-browser-performance\.mjs/);
-  assert.match(build, /ripscan-pwa-v3\.0\.2/);
+  assert.match(build, /ripscan-pwa-v3\.1\.0/);
   assert.match(build, /cover-hard-block\.mjs/);
   assert.match(build, /sara-am-recovery-v21\.mjs/);
   assert.match(build, /ocr-preprocess-worker\.js/);

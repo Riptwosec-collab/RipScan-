@@ -1,3 +1,9 @@
+import {
+  extractTesseractLayout,
+  layoutFromPdfItems,
+  scoreOcrCandidate,
+} from './ocr-layout.mjs';
+
 const PDFJS_URL = '/vendor/pdf.min.mjs';
 const PDFJS_WORKER_URL = '/vendor/pdf.worker.min.mjs';
 let pdfJsPromise = null;
@@ -404,21 +410,20 @@ async function fileToObjectUrl(file) {
 }
 
 function scoreOcrResult(result) {
-  const compactLength = result.text.replace(/\s/g, '').length;
-  const contentScore = Math.min(1, compactLength / 100);
-  const lineScore = Math.min(1, result.text.split('\n').filter(Boolean).length / 8);
-  return result.confidence * 0.76 + contentScore * 0.18 + lineScore * 0.06;
+  return scoreOcrCandidate(result);
 }
 
 async function recognizeCanvas(canvas, label, variant) {
   state.progressContext = `${label} · ${variant}`;
   const worker = await ensureWorker();
-  const response = await worker.recognize(canvas);
+  const response = await worker.recognize(canvas, {}, { text: true, blocks: true });
+  const layout = extractTesseractLayout(response.data, canvas.width, canvas.height);
   return {
-    text: normalizeOcrLayout(response.data.text),
+    text: normalizeOcrLayout(layout.text || response.data.text),
     confidence: Math.max(0, Math.min(1, Number(response.data.confidence || 0) / 100)),
     source: 'ocr-browser',
     variant,
+    layout,
   };
 }
 
@@ -457,6 +462,7 @@ async function recognizeWithAutoEnhancement(sourceCanvas, label) {
     bestVariant: currentBest.variant,
     deskewAngle,
     enhancedPreviewUrl,
+    layout: currentBest.layout,
     attempts: recognized.map(item => ({ name: item.variant, confidence: item.confidence })),
   };
 }
@@ -514,9 +520,16 @@ async function processPdf(file, fileIndex) {
       const originalPreviewUrl = await canvasToObjectUrl(canvas);
 
       if (textLayer.replace(/\s/g, '').length >= 12) {
+        const baseViewport = page.getViewport({ scale: 1 });
+        const pdfLayout = layoutFromPdfItems(
+          textContent.items,
+          canvas.width,
+          canvas.height,
+          canvas.width / Math.max(1, baseViewport.width),
+        );
         pages.push({
           page: pageNumber,
-          text: textLayer,
+          text: pdfLayout.text || textLayer,
           confidence: 1,
           source: 'pdf-text',
           bestVariant: 'PDF Text Layer',
@@ -524,6 +537,7 @@ async function processPdf(file, fileIndex) {
           originalPreviewUrl,
           enhancedPreviewUrl: null,
           attempts: [],
+          layout: pdfLayout,
         });
         releaseCanvas(canvas);
         page.cleanup();
@@ -599,6 +613,13 @@ function renderResults(documents) {
       <div class="page-list">${documentData.pages.map((page, pageIndex) => renderPageReview(page, documentIndex, pageIndex)).join('')}</div>
     </article>`;
   }).join('');
+  window.__ripscanOcrPages ||= new WeakMap();
+  results.querySelectorAll('.page-card').forEach(pageCard => {
+    const documentIndex = Number(pageCard.closest('.result-card')?.dataset.document);
+    const pageIndex = Number(pageCard.dataset.pageCard);
+    const page = documents[documentIndex]?.pages?.[pageIndex];
+    if (page) window.__ripscanOcrPages.set(pageCard, page);
+  });
   results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 

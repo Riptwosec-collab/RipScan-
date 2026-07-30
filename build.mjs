@@ -99,7 +99,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.0.2');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.0');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',
@@ -124,6 +124,7 @@ const assets = [
   '/sara-am-recovery-v21.mjs',
   '/ocr-performance-core.mjs',
   '/ocr-runtime-guard.js',
+  '/ocr-layout.mjs',
   '/ocr-preprocess-worker.js',
   '/performance-v22-ui.js',
   '/table-structure-core.mjs',

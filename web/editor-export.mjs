@@ -278,36 +278,132 @@ function xmlEscape(value) {
   return String(value ?? '').replace(/[<>&"']/gu, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[character]).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/gu, '');
 }
 
+const pxToPt = value => Math.max(0, Number(value) || 0) * .75;
+const pxToTwip = value => Math.max(1, Math.round((Number(value) || 0) * 15));
+
+function wordColor(value, fallback = '111827') {
+  const clean = String(value || '').replace(/^#/u, '');
+  return /^[0-9a-f]{6}$/iu.test(clean) ? clean.toUpperCase() : fallback;
+}
+
+function wordRunProperties(style = {}) {
+  const fontSize = Math.max(8, Number(style.fontSize) || 16);
+  return `<w:rPr>${Number(style.fontWeight) >= 600 ? '<w:b/>' : ''}${style.fontStyle === 'italic' ? '<w:i/>' : ''}${style.textDecoration === 'underline' ? '<w:u w:val="single"/>' : ''}<w:color w:val="${wordColor(style.color)}"/><w:sz w:val="${Math.round(fontSize * 1.5)}"/><w:szCs w:val="${Math.round(fontSize * 1.5)}"/></w:rPr>`;
+}
+
+function wordParagraphXml(text, style = {}) {
+  const align = style.textAlign === 'center' ? 'center' : style.textAlign === 'right' ? 'right' : style.textAlign === 'justify' ? 'both' : 'left';
+  return String(text ?? '').split('\n').map(line => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="${Math.round((Number(style.fontSize) || 16) * (Number(style.lineHeight) || 1.15) * 15)}" w:lineRule="atLeast"/><w:jc w:val="${align}"/></w:pPr><w:r>${wordRunProperties(style)}<w:t xml:space="preserve">${xmlEscape(line || ' ')}</w:t></w:r></w:p>`).join('');
+}
+
 function tableToWordXml(table) {
+  const grid = Array.from({ length: table.columns }, (_, column) => Math.max(240, pxToTwip(table.columnWidths?.[column] || table.width / table.columns)));
   const rows = Array.from({ length: table.rows }, (_, row) => {
-    const cells = (table.cells || []).filter(cell => !cell.hidden && cell.row === row).sort((a, b) => a.column - b.column).map(cell => {
-      const properties = `<w:tcPr>${cell.columnSpan > 1 ? `<w:gridSpan w:val="${cell.columnSpan}"/>` : ''}${cell.rowSpan > 1 ? '<w:vMerge w:val="restart"/>' : ''}</w:tcPr>`;
-      const paragraphs = String(cell.text || '').split('\n').map(line => `<w:p><w:r><w:t xml:space="preserve">${xmlEscape(line || ' ')}</w:t></w:r></w:p>`).join('');
-      return `<w:tc>${properties}${paragraphs}</w:tc>`;
-    }).join('');
-    return `<w:tr>${cells}</w:tr>`;
+    const emitted = new Set();
+    const cells = [];
+    for (let column = 0; column < table.columns; column += 1) {
+      const cell = getTableCell(table, row, column);
+      if (!cell || emitted.has(cell.id)) continue;
+      emitted.add(cell.id);
+      if (cell.row < row) {
+        if (column !== cell.column) continue;
+        cells.push(`<w:tc><w:tcPr>${cell.columnSpan > 1 ? `<w:gridSpan w:val="${cell.columnSpan}"/>` : ''}<w:vMerge/></w:tcPr><w:p/></w:tc>`);
+        column += cell.columnSpan - 1;
+        continue;
+      }
+      const background = wordColor(cell.style?.backgroundColor, 'FFFFFF');
+      const properties = `<w:tcPr><w:tcW w:w="${grid.slice(cell.column, cell.column + cell.columnSpan).reduce((sum, value) => sum + value, 0)}" w:type="dxa"/>${cell.columnSpan > 1 ? `<w:gridSpan w:val="${cell.columnSpan}"/>` : ''}${cell.rowSpan > 1 ? '<w:vMerge w:val="restart"/>' : ''}<w:vAlign w:val="${cell.style?.verticalAlign === 'top' ? 'top' : cell.style?.verticalAlign === 'bottom' ? 'bottom' : 'center'}"/><w:shd w:val="clear" w:color="auto" w:fill="${background}"/></w:tcPr>`;
+      cells.push(`<w:tc>${properties}${wordParagraphXml(cell.text || ' ', cell.style)}</w:tc>`);
+      column += cell.columnSpan - 1;
+    }
+    return `<w:tr><w:trPr><w:trHeight w:val="${pxToTwip(table.rowHeights?.[row] || table.height / table.rows)}" w:hRule="atLeast"/></w:trPr>${cells.join('')}</w:tr>`;
   }).join('');
-  return `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>${rows}</w:tbl>`;
+  return `<w:tbl><w:tblPr><w:tblLayout w:type="fixed"/><w:tblW w:w="${pxToTwip(table.width)}" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid>${grid.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>${rows}</w:tbl>`;
+}
+
+function floatingShapeStyle(block, zIndex = block.zIndex || 1) {
+  return `position:absolute;margin-left:${pxToPt(block.x)}pt;margin-top:${pxToPt(block.y)}pt;width:${Math.max(.75, pxToPt(block.width))}pt;height:${Math.max(.75, pxToPt(block.height))}pt;z-index:${zIndex};rotation:${Number(block.rotation) || 0};mso-position-horizontal-relative:page;mso-position-vertical-relative:page;mso-wrap-style:none`;
+}
+
+const wordAnchorParagraphPr = '<w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr>';
+
+function floatingBlockXml(block) {
+  if (block.type === 'shape' || block.type === 'line') {
+    const fill = block.style?.fill && block.style.fill !== 'transparent' ? wordColor(block.style.fill, 'FFFFFF') : 'none';
+    return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block)}" ${fill === 'none' ? 'filled="f"' : `fillcolor="#${fill}"`} strokecolor="#${wordColor(block.style?.stroke, '111827')}" strokeweight="${Math.max(.5, Number(block.style?.strokeWidth) || 1)}pt"/></w:pict></w:r></w:p>`;
+  }
+  const content = block.type === 'table'
+    ? tableToWordXml(block)
+    : wordParagraphXml(block.type === 'field' ? `${block.label}${block.label ? ': ' : ''}${block.value}` : block.text || ' ', block.style);
+  const inset = Math.max(0, pxToPt(block.style?.padding || 0));
+  return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block)}" filled="f" stroked="${Number(block.style?.borderWidth || 0) > 0 ? 't' : 'f'}" strokecolor="#${wordColor(block.style?.borderColor, '111827')}"><v:textbox inset="${inset}pt,${inset}pt,${inset}pt,${inset}pt"><w:txbxContent>${content}</w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>`;
+}
+
+function pageSectionXml(page) {
+  return `<w:sectPr><w:pgSz w:w="${pxToTwip(page.width)}" w:h="${pxToTwip(page.height)}" w:orient="${page.width > page.height ? 'landscape' : 'portrait'}"/><w:pgMar w:top="0" w:right="0" w:bottom="0" w:left="0" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>`;
+}
+
+async function officeImageAsset(src, index) {
+  if (!src || typeof fetch !== 'function') return null;
+  try {
+    const response = await fetch(src);
+    if (!response.ok && response.type !== 'blob') return null;
+    const blob = await response.blob();
+    const type = blob.type || 'image/jpeg';
+    const extension = type.includes('png') ? 'png' : type.includes('gif') ? 'gif' : 'jpg';
+    return { bytes: await blob.arrayBuffer(), extension, filename: `page-background-${index + 1}.${extension}`, type };
+  } catch {
+    return null;
+  }
+}
+
+function floatingImageXml(block, relationshipId, title = 'Document image') {
+  return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block, block.zIndex || 1)}" filled="f" stroked="f"><v:imagedata r:id="${relationshipId}" o:title="${xmlEscape(title)}"/></v:rect></w:pict></w:r></w:p>`;
 }
 
 export async function modelToDocxBlob(documentModel) {
   if (!globalThis.JSZip) throw new Error('โหลดระบบ DOCX ไม่สำเร็จ');
   const zip = new globalThis.JSZip();
-  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
   zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  const pages = documentModel.pages || [];
+  const relationships = [];
   const body = [];
-  for (const [pageIndex, page] of (documentModel.pages || []).entries()) {
-    for (const block of (page.blocks || []).filter(item => !item.hidden).sort((a, b) => a.y - b.y || a.x - b.x)) {
-      if (block.type === 'table') body.push(tableToWordXml(block));
-      else if (block.type === 'image') body.push(`<w:p><w:r><w:t>[รูปภาพ: ${xmlEscape(block.alt || block.src || 'image')}]</w:t></w:r></w:p>`);
-      else {
-        const text = block.type === 'field' ? `${block.label}${block.label ? ': ' : ''}${block.value}` : block.text || '';
-        for (const line of String(text).split('\n')) body.push(`<w:p><w:pPr><w:jc w:val="${block.style?.textAlign === 'center' ? 'center' : block.style?.textAlign === 'right' ? 'right' : 'left'}"/></w:pPr><w:r><w:rPr>${Number(block.style?.fontWeight) >= 600 ? '<w:b/>' : ''}${block.style?.fontStyle === 'italic' ? '<w:i/>' : ''}<w:sz w:val="${Math.round((Number(block.style?.fontSize) || 16) * 1.5)}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(line || ' ')}</w:t></w:r></w:p>`);
-      }
+  let imageSequence = 0;
+  for (const [pageIndex, page] of pages.entries()) {
+    const pageImages = [
+      ...(page.backgroundImage ? [{
+        src: page.backgroundImage,
+        title: `Original page ${pageIndex + 1}`,
+        block: { x: 0, y: 0, width: page.width, height: page.height, zIndex: -100, rotation: 0 },
+      }] : []),
+      ...(page.blocks || []).filter(block => !block.hidden && block.type === 'image' && block.src).map(block => ({
+        src: block.src,
+        title: block.alt || `Image ${imageSequence + 1}`,
+        block,
+      })),
+    ];
+    const assets = await Promise.all(pageImages.map(async image => {
+      imageSequence += 1;
+      const sequence = imageSequence;
+      return { ...image, asset: await officeImageAsset(image.src, sequence - 1), relationshipId: `rIdImage${sequence}` };
+    }));
+    for (const image of assets) {
+      if (!image.asset) continue;
+      zip.folder('word').folder('media').file(image.asset.filename, image.asset.bytes);
+      relationships.push(`<Relationship Id="${image.relationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${image.asset.filename}"/>`);
+      body.push(floatingImageXml(image.block, image.relationshipId, image.title));
     }
-    if (pageIndex < documentModel.pages.length - 1) body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+    for (const block of (page.blocks || []).filter(item => !item.hidden && item.type !== 'image').sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1) || a.y - b.y || a.x - b.x)) {
+      body.push(floatingBlockXml(block));
+    }
+    if (pageIndex < pages.length - 1) {
+      body.push(`<w:p><w:pPr>${pageSectionXml(page)}</w:pPr><w:r><w:br w:type="page"/></w:r></w:p>`);
+    }
   }
-  zip.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body.join('')}<w:sectPr/></w:body></w:document>`);
+  const lastPage = pages.at(-1) || { width: 794, height: 1123 };
+  zip.folder('word').folder('_rels').file('document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationships.join('')}</Relationships>`);
+  zip.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body.join('')}${pageSectionXml(lastPage)}</w:body></w:document>`);
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
@@ -318,8 +414,48 @@ export async function modelToXlsxBlob(documentModel) {
   for (const [pageIndex, page] of (documentModel.pages || []).entries()) {
     const tables = (page.blocks || []).filter(block => block.type === 'table');
     if (!tables.length) {
-      const rows = (page.blocks || []).filter(block => ['text', 'header', 'footer', 'field'].includes(block.type)).sort((a, b) => a.y - b.y || a.x - b.x).map(block => [block.type === 'field' ? block.label : '', block.type === 'field' ? block.value : block.text || '']);
-      const sheet = globalThis.XLSX.utils.aoa_to_sheet(rows.length ? rows : [['']]);
+      const sheet = globalThis.XLSX.utils.aoa_to_sheet([['']]);
+      const columns = Math.max(16, Math.min(64, Math.round(page.width / 18)));
+      const rows = Math.max(24, Math.min(140, Math.round(page.height / 14)));
+      const occupied = new Set();
+      const merges = [];
+      const blocks = (page.blocks || []).filter(block => ['text', 'header', 'footer', 'field'].includes(block.type)).sort((a, b) => a.y - b.y || a.x - b.x);
+      for (const block of blocks) {
+        const text = block.type === 'field' ? `${block.label}${block.label ? ': ' : ''}${block.value}` : block.text || '';
+        if (!text) continue;
+        let row = Math.max(0, Math.min(rows - 1, Math.floor(block.y / Math.max(1, page.height) * rows)));
+        const column = Math.max(0, Math.min(columns - 1, Math.floor(block.x / Math.max(1, page.width) * columns)));
+        const endRow = Math.max(row, Math.min(rows - 1, Math.ceil((block.y + block.height) / Math.max(1, page.height) * rows) - 1));
+        const endColumn = Math.max(column, Math.min(columns - 1, Math.ceil((block.x + block.width) / Math.max(1, page.width) * columns) - 1));
+        while (row < rows - 1 && occupied.has(`${row}:${column}`)) row += 1;
+        const address = globalThis.XLSX.utils.encode_cell({ r: row, c: column });
+        sheet[address] = {
+          t: 's',
+          v: text,
+          s: {
+            alignment: {
+              horizontal: block.style?.textAlign || 'left',
+              vertical: block.style?.verticalAlign || 'top',
+              wrapText: true,
+            },
+            font: {
+              bold: Number(block.style?.fontWeight) >= 600,
+              italic: block.style?.fontStyle === 'italic',
+              sz: Math.max(8, Math.round((Number(block.style?.fontSize) || 16) * .75)),
+            },
+          },
+        };
+        const mergeEndRow = Math.max(row, endRow);
+        if (mergeEndRow > row || endColumn > column) merges.push({ s: { r: row, c: column }, e: { r: mergeEndRow, c: endColumn } });
+        for (let occupiedRow = row; occupiedRow <= mergeEndRow; occupiedRow += 1) {
+          for (let occupiedColumn = column; occupiedColumn <= endColumn; occupiedColumn += 1) occupied.add(`${occupiedRow}:${occupiedColumn}`);
+        }
+      }
+      sheet['!ref'] = `A1:${globalThis.XLSX.utils.encode_cell({ r: rows - 1, c: columns - 1 })}`;
+      sheet['!cols'] = Array.from({ length: columns }, () => ({ wpx: page.width / columns }));
+      sheet['!rows'] = Array.from({ length: rows }, () => ({ hpx: page.height / rows }));
+      sheet['!merges'] = merges;
+      sheet['!margins'] = { left: 0, right: 0, top: 0, bottom: 0, header: 0, footer: 0 };
       globalThis.XLSX.utils.book_append_sheet(workbook, sheet, `Page ${pageIndex + 1}`.slice(0, 31));
       continue;
     }
@@ -330,6 +466,7 @@ export async function modelToXlsxBlob(documentModel) {
       sheet['!cols'] = (table.columnWidths || []).map(width => ({ wpx: width }));
       sheet['!rows'] = (table.rowHeights || []).map(height => ({ hpx: height }));
       sheet['!merges'] = (table.cells || []).filter(cell => !cell.hidden && (cell.rowSpan > 1 || cell.columnSpan > 1)).map(cell => ({ s: { r: cell.row, c: cell.column }, e: { r: cell.row + cell.rowSpan - 1, c: cell.column + cell.columnSpan - 1 } }));
+      sheet['!margins'] = { left: 0, right: 0, top: 0, bottom: 0, header: 0, footer: 0 };
       globalThis.XLSX.utils.book_append_sheet(workbook, sheet, `Table ${tableCount}`.slice(0, 31));
     }
   }

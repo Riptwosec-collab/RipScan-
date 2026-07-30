@@ -79,7 +79,7 @@ test('production build injects and caches Document Studio v3 assets', async () =
     '/document-model.mjs',
     '/office-import.mjs',
     '/editor-export.mjs',
-    'ripscan-pwa-v3.0.2',
+    'ripscan-pwa-v3.1.0',
     'Document Reconstruction Studio v3',
   ]) assert.ok(build.includes(required), `missing ${required}`);
   const packageJson = JSON.parse(await read('package.json'));
