@@ -29,7 +29,7 @@ test('OCR runtime has bounded single-worker startup and recognition timeout', as
   assert.match(index, /src="\/ocr-runtime-guard\.js"/u);
   assert.match(index, /src="\/vendor\/tesseract\.min\.js"/u);
   assert.doesNotMatch(index, /cdn\.jsdelivr\.net/u);
-  assert.match(build, /ripscan-pwa-v3\.1\.0/u);
+  assert.match(build, /ripscan-pwa-v3\.1\.1/u);
   assert.match(serviceWorker, /'\/ocr-runtime-guard\.js'/u);
   assert.match(advanced, /data-ripscan-tesseract/u);
   for (const asset of ['worker.min.js', 'tesseract-core-lstm.wasm.js', 'tesseract-core-lstm.wasm', 'tha.traineddata.gz', 'eng.traineddata.gz']) {

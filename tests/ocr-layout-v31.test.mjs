@@ -10,6 +10,7 @@ import {
   ocrRowsToDocumentModel,
   tableRecordsToBlock,
 } from '../web/ocr-layout.mjs';
+import { createTextBlock } from '../web/document-model.mjs';
 import { modelToDocxBlob, modelToXlsxBlob } from '../web/editor-export.mjs';
 
 test('Tesseract layout retains line and word coordinates in reading order', () => {
@@ -115,6 +116,14 @@ test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged c
       }],
     },
   }], 'Positioned');
+  model.pages[0].blocks.push(createTextBlock({
+    x: 40,
+    y: 120,
+    width: 300,
+    height: 42,
+    text: 'VISIBLE USER NOTE',
+    metadata: { userCreated: true },
+  }));
 
   const docx = await modelToDocxBlob(model);
   const zip = await JSZip.loadAsync(await docx.arrayBuffer());
@@ -124,6 +133,14 @@ test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged c
   assert.match(documentXml, /margin-top:22.5pt/u);
   assert.match(documentXml, /w:pgSz w:w="12000" w:h="16500"/u);
   assert.match(documentXml, /<v:textbox/u);
+  assert.match(documentXml, /<w:vanish\/>/u);
+  assert.match(documentXml, /<w:webHidden\/>/u);
+  assert.match(documentXml, /<w:noProof\/>/u);
+  assert.equal(documentXml.match(/<w:vanish\/>/gu)?.length, 1);
+  const visibleTextIndex = documentXml.indexOf('VISIBLE USER NOTE');
+  const visiblePropertiesStart = documentXml.lastIndexOf('<w:rPr>', visibleTextIndex);
+  const visiblePropertiesEnd = documentXml.indexOf('</w:rPr>', visiblePropertiesStart);
+  assert.doesNotMatch(documentXml.slice(visiblePropertiesStart, visiblePropertiesEnd), /w:vanish/u);
   assert.match(documentXml, /w:line="1" w:lineRule="exact"/u);
   assert.match(documentXml, /<v:imagedata r:id="rIdImage1"/u);
   assert.ok(zip.file('word/media/page-background-1.png'));
@@ -134,4 +151,36 @@ test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged c
   const values = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }).flat();
   assert.ok(values.includes('หัวข้อ'));
   assert.ok(sheet['!merges']?.length >= 1);
+});
+
+test('DOCX source-image mode hides OCR table borders and text without hiding user blocks', async () => {
+  globalThis.JSZip = JSZip;
+  const table = tableRecordsToBlock([
+    { rowIndex: 0, columnIndex: 0, rowSpan: 1, columnSpan: 1, text: 'OCR CELL' },
+  ], { x: 40, y: 80, width: 300, height: 60 });
+  const model = ocrRowsToDocumentModel([{
+    originalPage: 1,
+    width: 800,
+    height: 1100,
+    image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n3cAAAAASUVORK5CYII=',
+    tables: [table],
+  }], 'Hidden table');
+  model.pages[0].blocks.push(createTextBlock({
+    x: 40,
+    y: 180,
+    width: 300,
+    height: 42,
+    text: 'VISIBLE USER NOTE',
+  }));
+
+  const docx = await modelToDocxBlob(model);
+  const zip = await JSZip.loadAsync(await docx.arrayBuffer());
+  const documentXml = await zip.file('word/document.xml').async('text');
+  assert.match(documentXml, /<w:top w:val="nil"/u);
+  assert.match(documentXml, /<w:insideV w:val="nil"/u);
+  assert.match(documentXml, /<w:vanish\/>/u);
+  const visibleTextIndex = documentXml.indexOf('VISIBLE USER NOTE');
+  const visiblePropertiesStart = documentXml.lastIndexOf('<w:rPr>', visibleTextIndex);
+  const visiblePropertiesEnd = documentXml.indexOf('</w:rPr>', visiblePropertiesStart);
+  assert.doesNotMatch(documentXml.slice(visiblePropertiesStart, visiblePropertiesEnd), /w:vanish/u);
 });

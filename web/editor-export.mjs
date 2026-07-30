@@ -286,17 +286,19 @@ function wordColor(value, fallback = '111827') {
   return /^[0-9a-f]{6}$/iu.test(clean) ? clean.toUpperCase() : fallback;
 }
 
-function wordRunProperties(style = {}) {
+function wordRunProperties(style = {}, options = {}) {
   const fontSize = Math.max(8, Number(style.fontSize) || 16);
-  return `<w:rPr>${Number(style.fontWeight) >= 600 ? '<w:b/>' : ''}${style.fontStyle === 'italic' ? '<w:i/>' : ''}${style.textDecoration === 'underline' ? '<w:u w:val="single"/>' : ''}<w:color w:val="${wordColor(style.color)}"/><w:sz w:val="${Math.round(fontSize * 1.5)}"/><w:szCs w:val="${Math.round(fontSize * 1.5)}"/></w:rPr>`;
+  const hiddenSearchLayer = options.hiddenSearchLayer ? '<w:vanish/><w:webHidden/><w:noProof/>' : '';
+  return `<w:rPr>${hiddenSearchLayer}${Number(style.fontWeight) >= 600 ? '<w:b/>' : ''}${style.fontStyle === 'italic' ? '<w:i/>' : ''}${style.textDecoration === 'underline' ? '<w:u w:val="single"/>' : ''}<w:color w:val="${wordColor(style.color)}"/><w:sz w:val="${Math.round(fontSize * 1.5)}"/><w:szCs w:val="${Math.round(fontSize * 1.5)}"/></w:rPr>`;
 }
 
-function wordParagraphXml(text, style = {}) {
+function wordParagraphXml(text, style = {}, options = {}) {
   const align = style.textAlign === 'center' ? 'center' : style.textAlign === 'right' ? 'right' : style.textAlign === 'justify' ? 'both' : 'left';
-  return String(text ?? '').split('\n').map(line => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="${Math.round((Number(style.fontSize) || 16) * (Number(style.lineHeight) || 1.15) * 15)}" w:lineRule="atLeast"/><w:jc w:val="${align}"/></w:pPr><w:r>${wordRunProperties(style)}<w:t xml:space="preserve">${xmlEscape(line || ' ')}</w:t></w:r></w:p>`).join('');
+  return String(text ?? '').split('\n').map(line => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="${Math.round((Number(style.fontSize) || 16) * (Number(style.lineHeight) || 1.15) * 15)}" w:lineRule="atLeast"/><w:jc w:val="${align}"/></w:pPr><w:r>${wordRunProperties(style, options)}<w:t xml:space="preserve">${xmlEscape(line || ' ')}</w:t></w:r></w:p>`).join('');
 }
 
-function tableToWordXml(table) {
+function tableToWordXml(table, options = {}) {
+  const hiddenSearchLayer = Boolean(options.hiddenSearchLayer);
   const grid = Array.from({ length: table.columns }, (_, column) => Math.max(240, pxToTwip(table.columnWidths?.[column] || table.width / table.columns)));
   const rows = Array.from({ length: table.rows }, (_, row) => {
     const emitted = new Set();
@@ -311,14 +313,15 @@ function tableToWordXml(table) {
         column += cell.columnSpan - 1;
         continue;
       }
-      const background = wordColor(cell.style?.backgroundColor, 'FFFFFF');
+      const background = hiddenSearchLayer ? 'auto' : wordColor(cell.style?.backgroundColor, 'FFFFFF');
       const properties = `<w:tcPr><w:tcW w:w="${grid.slice(cell.column, cell.column + cell.columnSpan).reduce((sum, value) => sum + value, 0)}" w:type="dxa"/>${cell.columnSpan > 1 ? `<w:gridSpan w:val="${cell.columnSpan}"/>` : ''}${cell.rowSpan > 1 ? '<w:vMerge w:val="restart"/>' : ''}<w:vAlign w:val="${cell.style?.verticalAlign === 'top' ? 'top' : cell.style?.verticalAlign === 'bottom' ? 'bottom' : 'center'}"/><w:shd w:val="clear" w:color="auto" w:fill="${background}"/></w:tcPr>`;
-      cells.push(`<w:tc>${properties}${wordParagraphXml(cell.text || ' ', cell.style)}</w:tc>`);
+      cells.push(`<w:tc>${properties}${wordParagraphXml(cell.text || ' ', cell.style, options)}</w:tc>`);
       column += cell.columnSpan - 1;
     }
     return `<w:tr><w:trPr><w:trHeight w:val="${pxToTwip(table.rowHeights?.[row] || table.height / table.rows)}" w:hRule="atLeast"/></w:trPr>${cells.join('')}</w:tr>`;
   }).join('');
-  return `<w:tbl><w:tblPr><w:tblLayout w:type="fixed"/><w:tblW w:w="${pxToTwip(table.width)}" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid>${grid.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>${rows}</w:tbl>`;
+  const borderValue = hiddenSearchLayer ? 'nil' : 'single';
+  return `<w:tbl><w:tblPr><w:tblLayout w:type="fixed"/><w:tblW w:w="${pxToTwip(table.width)}" w:type="dxa"/><w:tblBorders><w:top w:val="${borderValue}" w:sz="4"/><w:left w:val="${borderValue}" w:sz="4"/><w:bottom w:val="${borderValue}" w:sz="4"/><w:right w:val="${borderValue}" w:sz="4"/><w:insideH w:val="${borderValue}" w:sz="4"/><w:insideV w:val="${borderValue}" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid>${grid.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>${rows}</w:tbl>`;
 }
 
 function floatingShapeStyle(block, zIndex = block.zIndex || 1) {
@@ -327,16 +330,19 @@ function floatingShapeStyle(block, zIndex = block.zIndex || 1) {
 
 const wordAnchorParagraphPr = '<w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr>';
 
-function floatingBlockXml(block) {
+function floatingBlockXml(block, options = {}) {
+  const hiddenSearchLayer = Boolean(options.hiddenSearchLayer);
   if (block.type === 'shape' || block.type === 'line') {
+    if (hiddenSearchLayer) return '';
     const fill = block.style?.fill && block.style.fill !== 'transparent' ? wordColor(block.style.fill, 'FFFFFF') : 'none';
     return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block)}" ${fill === 'none' ? 'filled="f"' : `fillcolor="#${fill}"`} strokecolor="#${wordColor(block.style?.stroke, '111827')}" strokeweight="${Math.max(.5, Number(block.style?.strokeWidth) || 1)}pt"/></w:pict></w:r></w:p>`;
   }
   const content = block.type === 'table'
-    ? tableToWordXml(block)
-    : wordParagraphXml(block.type === 'field' ? `${block.label}${block.label ? ': ' : ''}${block.value}` : block.text || ' ', block.style);
+    ? tableToWordXml(block, options)
+    : wordParagraphXml(block.type === 'field' ? `${block.label}${block.label ? ': ' : ''}${block.value}` : block.text || ' ', block.style, options);
   const inset = Math.max(0, pxToPt(block.style?.padding || 0));
-  return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block)}" filled="f" stroked="${Number(block.style?.borderWidth || 0) > 0 ? 't' : 'f'}" strokecolor="#${wordColor(block.style?.borderColor, '111827')}"><v:textbox inset="${inset}pt,${inset}pt,${inset}pt,${inset}pt"><w:txbxContent>${content}</w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>`;
+  const stroked = !hiddenSearchLayer && Number(block.style?.borderWidth || 0) > 0 ? 't' : 'f';
+  return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block)}" filled="f" stroked="${stroked}" strokecolor="#${wordColor(block.style?.borderColor, '111827')}"><v:textbox inset="${inset}pt,${inset}pt,${inset}pt,${inset}pt"><w:txbxContent>${content}</w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>`;
 }
 
 function pageSectionXml(page) {
@@ -394,8 +400,11 @@ export async function modelToDocxBlob(documentModel) {
       relationships.push(`<Relationship Id="${image.relationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${image.asset.filename}"/>`);
       body.push(floatingImageXml(image.block, image.relationshipId, image.title));
     }
+    const preserveOriginalAppearance = Boolean(page.backgroundImage && page.metadata?.preserveBackgroundInOffice);
     for (const block of (page.blocks || []).filter(item => !item.hidden && item.type !== 'image').sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1) || a.y - b.y || a.x - b.x)) {
-      body.push(floatingBlockXml(block));
+      body.push(floatingBlockXml(block, {
+        hiddenSearchLayer: preserveOriginalAppearance && Boolean(block.metadata?.ocrSearchOverlay),
+      }));
     }
     if (pageIndex < pages.length - 1) {
       body.push(`<w:p><w:pPr>${pageSectionXml(page)}</w:pPr><w:r><w:br w:type="page"/></w:r></w:p>`);

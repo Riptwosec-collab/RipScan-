@@ -230,7 +230,13 @@ export function ocrRowsToDocumentModel(rows = [], name = 'RipScan OCR') {
     });
     const tableBlocks = Array.isArray(row.tables) ? row.tables : [];
     if (tableBlocks.length) {
-      page.blocks.push(...tableBlocks);
+      page.blocks.push(...tableBlocks.map(block => ({
+        ...block,
+        metadata: {
+          ...(block.metadata || {}),
+          ocrSearchOverlay: Boolean(row.image),
+        },
+      })));
     } else if (layout.lines?.length) {
       const heights = layout.lines.map(line => line.bbox.height).sort((a, b) => a - b);
       const medianHeight = heights[Math.floor(heights.length / 2)] || 16;
@@ -254,7 +260,11 @@ export function ocrRowsToDocumentModel(rows = [], name = 'RipScan OCR') {
             backgroundColor: 'transparent',
             fontWeight: line.bbox.height >= medianHeight * 1.42 ? 700 : 400,
           },
-          metadata: { bbox: { ...line.bbox }, baseline: line.baseline || null },
+          metadata: {
+            bbox: { ...line.bbox },
+            baseline: line.baseline || null,
+            ocrSearchOverlay: Boolean(row.image),
+          },
         }));
       }
     } else {
@@ -271,6 +281,7 @@ export function ocrRowsToDocumentModel(rows = [], name = 'RipScan OCR') {
           source: 'ocr-text-fallback',
           confidence: Number(row.confidence) || 0,
           style: { fontSize: lineHeight * .72, lineHeight: 1.08, padding: 0 },
+          metadata: { ocrSearchOverlay: Boolean(row.image) },
         }));
       });
     }
