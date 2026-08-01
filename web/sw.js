@@ -1,4 +1,4 @@
-const VERSION = 'ripscan-pwa-v3.1.1';
+const VERSION = 'ripscan-pwa-v3.1.2';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [

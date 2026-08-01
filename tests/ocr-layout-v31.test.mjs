@@ -94,7 +94,7 @@ test('OCR rows become positioned editable blocks and detected tables become real
   assert.equal(model.pages[0].blocks[0].cells[0].columnSpan, 2);
 });
 
-test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged cells', async () => {
+test('editable DOCX exposes positioned text boxes without flattening the source image', async () => {
   globalThis.JSZip = JSZip;
   globalThis.XLSX = XLSX;
   const model = ocrRowsToDocumentModel([{
@@ -125,7 +125,7 @@ test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged c
     metadata: { userCreated: true },
   }));
 
-  const docx = await modelToDocxBlob(model);
+  const docx = await modelToDocxBlob(model, { officeMode: 'editable' });
   const zip = await JSZip.loadAsync(await docx.arrayBuffer());
   const documentXml = await zip.file('word/document.xml').async('text');
   assert.match(documentXml, /xmlns:v="urn:schemas-microsoft-com:vml"/u);
@@ -133,24 +133,23 @@ test('DOCX uses page-sized absolute text boxes and XLSX uses positioned merged c
   assert.match(documentXml, /margin-top:22.5pt/u);
   assert.match(documentXml, /w:pgSz w:w="12000" w:h="16500"/u);
   assert.match(documentXml, /<v:textbox/u);
-  assert.match(documentXml, /<w:vanish\/>/u);
-  assert.match(documentXml, /<w:webHidden\/>/u);
-  assert.match(documentXml, /<w:noProof\/>/u);
-  assert.equal(documentXml.match(/<w:vanish\/>/gu)?.length, 1);
+  assert.doesNotMatch(documentXml, /<w:vanish\/>/u);
   const visibleTextIndex = documentXml.indexOf('VISIBLE USER NOTE');
   const visiblePropertiesStart = documentXml.lastIndexOf('<w:rPr>', visibleTextIndex);
   const visiblePropertiesEnd = documentXml.indexOf('</w:rPr>', visiblePropertiesStart);
   assert.doesNotMatch(documentXml.slice(visiblePropertiesStart, visiblePropertiesEnd), /w:vanish/u);
   assert.match(documentXml, /w:line="1" w:lineRule="exact"/u);
-  assert.match(documentXml, /<v:imagedata r:id="rIdImage1"/u);
-  assert.ok(zip.file('word/media/page-background-1.png'));
+  assert.doesNotMatch(documentXml, /<v:imagedata/u);
+  assert.equal(zip.file('word/media/page-background-1.png'), null);
 
-  const xlsx = await modelToXlsxBlob(model);
+  const xlsx = await modelToXlsxBlob(model, { officeMode: 'editable' });
   const workbook = XLSX.read(await xlsx.arrayBuffer(), { type: 'array' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const values = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }).flat();
   assert.ok(values.includes('หัวข้อ'));
+  assert.ok(values.includes('VISIBLE USER NOTE'));
   assert.ok(sheet['!merges']?.length >= 1);
+  assert.equal(workbook.Props.Subject, 'Editable OCR cells');
 });
 
 test('DOCX source-image mode hides OCR table borders and text without hiding user blocks', async () => {
@@ -173,14 +172,34 @@ test('DOCX source-image mode hides OCR table borders and text without hiding use
     text: 'VISIBLE USER NOTE',
   }));
 
-  const docx = await modelToDocxBlob(model);
+  const docx = await modelToDocxBlob(model, { officeMode: 'original' });
   const zip = await JSZip.loadAsync(await docx.arrayBuffer());
   const documentXml = await zip.file('word/document.xml').async('text');
   assert.match(documentXml, /<w:top w:val="nil"/u);
   assert.match(documentXml, /<w:insideV w:val="nil"/u);
   assert.match(documentXml, /<w:vanish\/>/u);
+  assert.match(documentXml, /<v:imagedata r:id="rIdImage1"/u);
+  assert.ok(zip.file('word/media/page-background-1.png'));
   const visibleTextIndex = documentXml.indexOf('VISIBLE USER NOTE');
   const visiblePropertiesStart = documentXml.lastIndexOf('<w:rPr>', visibleTextIndex);
   const visiblePropertiesEnd = documentXml.indexOf('</w:rPr>', visiblePropertiesStart);
   assert.doesNotMatch(documentXml.slice(visiblePropertiesStart, visiblePropertiesEnd), /w:vanish/u);
+});
+
+test('XLSX merged cells keep text only in the editable anchor cell', async () => {
+  globalThis.XLSX = XLSX;
+  const table = tableRecordsToBlock([
+    { rowIndex: 0, columnIndex: 0, rowSpan: 1, columnSpan: 2, text: 'MERGED HEADER' },
+    { rowIndex: 1, columnIndex: 0, rowSpan: 1, columnSpan: 1, text: 'A-001' },
+    { rowIndex: 1, columnIndex: 1, rowSpan: 1, columnSpan: 1, text: 'Editable value' },
+  ], { width: 500, height: 100 });
+  const model = ocrRowsToDocumentModel([{ width: 800, height: 1100, tables: [table] }], 'Editable table');
+  const xlsx = await modelToXlsxBlob(model, { officeMode: 'editable' });
+  const workbook = XLSX.read(await xlsx.arrayBuffer(), { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  assert.equal(sheet.A1.v, 'MERGED HEADER');
+  assert.equal(sheet.B1?.v || '', '');
+  assert.equal(sheet.A2.v, 'A-001');
+  assert.equal(sheet.B2.v, 'Editable value');
+  assert.deepEqual(sheet['!merges'][0], { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } });
 });

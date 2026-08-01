@@ -52,6 +52,8 @@ test('Convert Center supports PDF JPG PNG resize quality and page options', asyn
     'convertQuality',
     'convertPageSize',
     'convertOrientation',
+    'convertOfficeMode',
+    'แก้ไขข้อความ ตาราง และเซลล์ได้ (แนะนำ)',
     'runConversion',
     'cancel-task',
   ]) assert.ok(source.includes(required), `missing ${required}`);
@@ -79,7 +81,7 @@ test('production build injects and caches Document Studio v3 assets', async () =
     '/document-model.mjs',
     '/office-import.mjs',
     '/editor-export.mjs',
-    'ripscan-pwa-v3.1.1',
+    'ripscan-pwa-v3.1.2',
     'Document Reconstruction Studio v3',
   ]) assert.ok(build.includes(required), `missing ${required}`);
   const packageJson = JSON.parse(await read('package.json'));

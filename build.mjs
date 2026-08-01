@@ -99,7 +99,7 @@ await writeFile(coverUiPath, coverUi, 'utf8');
 
 const serviceWorkerPath = 'dist/sw.js';
 let serviceWorker = await readFile(serviceWorkerPath, 'utf8');
-serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.1');
+serviceWorker = serviceWorker.replace(/ripscan-pwa-v[0-9.]+/g, 'ripscan-pwa-v3.1.2');
 const assets = [
   '/layout-cover.css',
   '/reference-scale.css',

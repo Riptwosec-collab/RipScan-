@@ -29,6 +29,7 @@ export function normalizeExportOptions(options = {}) {
     margin: Math.max(0, Number(options.margin) || 0),
     background: options.background || '#ffffff',
     transparent: Boolean(options.transparent),
+    officeMode: options.officeMode === 'original' ? 'original' : 'editable',
     selectedPages: Array.isArray(options.selectedPages) ? options.selectedPages : null,
   };
 }
@@ -191,12 +192,12 @@ export async function exportPageElements(elements, pages, options = {}, filename
   if (normalized.format === 'docx') {
     const documentModel = options.documentModel;
     if (!documentModel) throw new Error('ไม่พบ Document Model สำหรับ DOCX');
-    return downloadBlob(await modelToDocxBlob(documentModel), `${base}.docx`);
+    return downloadBlob(await modelToDocxBlob(documentModel, normalized), `${base}-${normalized.officeMode}.docx`);
   }
   if (normalized.format === 'xlsx') {
     const documentModel = options.documentModel;
     if (!documentModel) throw new Error('ไม่พบ Document Model สำหรับ XLSX');
-    return downloadBlob(await modelToXlsxBlob(documentModel), `${base}.xlsx`);
+    return downloadBlob(await modelToXlsxBlob(documentModel, { ...normalized, officeMode: 'editable' }), `${base}-editable.xlsx`);
   }
   if (normalized.format === 'pdf') {
     await ensureStudioLibraries({ render: true, pdf: true });
@@ -367,7 +368,7 @@ function floatingImageXml(block, relationshipId, title = 'Document image') {
   return `<w:p>${wordAnchorParagraphPr}<w:r><w:pict><v:rect style="${floatingShapeStyle(block, block.zIndex || 1)}" filled="f" stroked="f"><v:imagedata r:id="${relationshipId}" o:title="${xmlEscape(title)}"/></v:rect></w:pict></w:r></w:p>`;
 }
 
-export async function modelToDocxBlob(documentModel) {
+export async function modelToDocxBlob(documentModel, options = {}) {
   if (!globalThis.JSZip) throw new Error('โหลดระบบ DOCX ไม่สำเร็จ');
   const zip = new globalThis.JSZip();
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
@@ -377,8 +378,10 @@ export async function modelToDocxBlob(documentModel) {
   const body = [];
   let imageSequence = 0;
   for (const [pageIndex, page] of pages.entries()) {
+    const preserveOriginalAppearance = options.officeMode === 'original'
+      && Boolean(page.backgroundImage && page.metadata?.preserveBackgroundInOffice);
     const pageImages = [
-      ...(page.backgroundImage ? [{
+      ...(preserveOriginalAppearance ? [{
         src: page.backgroundImage,
         title: `Original page ${pageIndex + 1}`,
         block: { x: 0, y: 0, width: page.width, height: page.height, zIndex: -100, rotation: 0 },
@@ -400,7 +403,6 @@ export async function modelToDocxBlob(documentModel) {
       relationships.push(`<Relationship Id="${image.relationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${image.asset.filename}"/>`);
       body.push(floatingImageXml(image.block, image.relationshipId, image.title));
     }
-    const preserveOriginalAppearance = Boolean(page.backgroundImage && page.metadata?.preserveBackgroundInOffice);
     for (const block of (page.blocks || []).filter(item => !item.hidden && item.type !== 'image').sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1) || a.y - b.y || a.x - b.x)) {
       body.push(floatingBlockXml(block, {
         hiddenSearchLayer: preserveOriginalAppearance && Boolean(block.metadata?.ocrSearchOverlay),
@@ -416,9 +418,14 @@ export async function modelToDocxBlob(documentModel) {
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
-export async function modelToXlsxBlob(documentModel) {
+export async function modelToXlsxBlob(documentModel, options = {}) {
   await ensureStudioLibraries({ xlsx: true });
   const workbook = globalThis.XLSX.utils.book_new();
+  workbook.Props = {
+    Title: documentModel.name || 'RipScan Editable OCR',
+    Subject: options.officeMode === 'original' ? 'RipScan OCR export' : 'Editable OCR cells',
+    Creator: 'RipScan',
+  };
   let tableCount = 0;
   for (const [pageIndex, page] of (documentModel.pages || []).entries()) {
     const tables = (page.blocks || []).filter(block => block.type === 'table');
@@ -470,7 +477,10 @@ export async function modelToXlsxBlob(documentModel) {
     }
     for (const table of tables) {
       tableCount += 1;
-      const matrix = Array.from({ length: table.rows }, (_, row) => Array.from({ length: table.columns }, (_, column) => getTableCell(table, row, column)?.text || ''));
+      const matrix = Array.from({ length: table.rows }, (_, row) => Array.from({ length: table.columns }, (_, column) => {
+        const cell = getTableCell(table, row, column);
+        return cell && cell.row === row && cell.column === column ? cell.text || '' : '';
+      }));
       const sheet = globalThis.XLSX.utils.aoa_to_sheet(matrix);
       sheet['!cols'] = (table.columnWidths || []).map(width => ({ wpx: width }));
       sheet['!rows'] = (table.rowHeights || []).map(height => ({ hpx: height }));

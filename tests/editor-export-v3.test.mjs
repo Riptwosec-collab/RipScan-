@@ -17,6 +17,8 @@ test('export presets support A4 A5 Letter Legal and orientation', () => {
   const landscape = normalizeExportOptions({ pageSize: 'A4', orientation: 'landscape' });
   assert.equal(landscape.width, 1123);
   assert.equal(landscape.height, 794);
+  assert.equal(landscape.officeMode, 'editable');
+  assert.equal(normalizeExportOptions({ officeMode: 'original' }).officeMode, 'original');
 });
 
 test('resize keeps aspect ratio and converts DPI to canvas dimensions', () => {

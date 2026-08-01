@@ -54,7 +54,7 @@ function upgradeCard(card) {
 
   const exportBar = document.createElement('div');
   exportBar.className = 'export-bar managed-export';
-  exportBar.innerHTML = `<label>รูปแบบส่งออก<select class="managed-format"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option><option value="csv">CSV</option><option value="json">JSON</option><option value="docx">DOCX</option><option value="xlsx">XLSX</option><option value="pdf">PDF ค้นหาข้อความได้</option></select></label><div class="actions"><button data-managed-action="copy-all">คัดลอกทั้งหมด</button><button data-managed-action="export-selected">ส่งออกหน้าที่เลือก</button><button data-managed-action="export-all">ส่งออกทั้งหมด</button><button data-managed-action="download-images">รูปหน้าที่เลือก ZIP</button></div>`;
+  exportBar.innerHTML = `<label>รูปแบบส่งออก<select class="managed-format"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option><option value="csv">CSV</option><option value="json">JSON</option><option value="docx">DOCX แก้ไขข้อความ/ตารางได้</option><option value="docx-original">DOCX เหมือนต้นฉบับ (ภาพ + ค้นหา)</option><option value="xlsx">XLSX แก้ไขเซลล์/ตารางได้</option><option value="pdf">PDF ค้นหาข้อความได้</option></select></label><div class="actions"><button data-managed-action="copy-all">คัดลอกทั้งหมด</button><button data-managed-action="export-selected">ส่งออกหน้าที่เลือก</button><button data-managed-action="export-all">ส่งออกทั้งหมด</button><button data-managed-action="download-images">รูปหน้าที่เลือก ZIP</button></div>`;
   card.querySelector('.result-head').after(exportBar);
 
   const workspace = document.createElement('div');
@@ -335,10 +335,13 @@ async function exportRows(state, onlySelected) {
   if (format === 'html') return downloadText(html(rows, state.filename), `${base}.html`, 'text/html;charset=utf-8');
   if (format === 'csv') return downloadText('\ufeff' + csv(rows), `${base}.csv`, 'text/csv;charset=utf-8');
   if (format === 'json') return downloadText(JSON.stringify({ document: state.filename, exportedAt: new Date().toISOString(), pages: rows }, null, 2), `${base}.json`, 'application/json;charset=utf-8');
-  if (format === 'docx' || format === 'xlsx') {
+  if (format === 'docx' || format === 'docx-original' || format === 'xlsx') {
     const documentModel = ocrRowsToDocumentModel(rows, state.filename);
-    if (format === 'docx') return downloadBlob(await modelToDocxBlob(documentModel), `${base}.docx`);
-    return downloadBlob(await modelToXlsxBlob(documentModel), `${base}.xlsx`);
+    if (format === 'docx' || format === 'docx-original') {
+      const officeMode = format === 'docx-original' ? 'original' : 'editable';
+      return downloadBlob(await modelToDocxBlob(documentModel, { officeMode }), `${base}${officeMode === 'original' ? '-original' : '-editable'}.docx`);
+    }
+    return downloadBlob(await modelToXlsxBlob(documentModel, { officeMode: 'editable' }), `${base}-editable.xlsx`);
   }
   if (format === 'pdf') return printablePdf(rows, state.filename);
 }
