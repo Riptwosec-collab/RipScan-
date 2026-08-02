@@ -9,7 +9,7 @@
     "build": "npm test && npm run check && node build.mjs && node build-vendor-assets.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13 <27"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",
@@ -17,7 +17,7 @@
     "html2canvas": "1.4.1",
     "jspdf": "4.2.1",
     "jszip": "3.10.1",
-    "pdfjs-dist": "4.10.38",
+    "pdfjs-dist": "6.2.108",
     "tesseract.js": "7.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }

@@ -35,6 +35,15 @@ const MAX_FILES = 10;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 100;
 const MAX_CANVAS_SIDE = 2800;
+const SUPPORTED_IMAGE_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/tiff',
+  'image/bmp',
+]);
+const SUPPORTED_FILE_NAME = /\.(pdf|png|jpe?g|webp|tiff?|bmp)$/i;
 const LANGUAGE_MAP = {
   auto: ['tha', 'eng'],
   th: ['tha'],
@@ -77,10 +86,12 @@ const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({
 
 const pageKey = (documentIndex, pageIndex) => `${documentIndex}:${pageIndex}`;
 
+const isSupportedImageType = type => SUPPORTED_IMAGE_TYPES.has(String(type || '').toLowerCase());
+
 function isSupported(file) {
   return file.type === 'application/pdf'
-    || file.type.startsWith('image/')
-    || /\.(pdf|png|jpe?g|webp|tiff?|bmp)$/i.test(file.name);
+    || isSupportedImageType(file.type)
+    || SUPPORTED_FILE_NAME.test(file.name);
 }
 
 function updateFileControls() {
@@ -100,7 +111,9 @@ function renderFileList() {
 }
 
 function addFiles(files, { replace = false } = {}) {
-  const incoming = [...files].filter(isSupported);
+  const submitted = [...files];
+  const incoming = submitted.filter(isSupported);
+  const rejected = submitted.filter(file => !isSupported(file));
   if (!incoming.length) return showError('ไม่พบรูปภาพหรือ PDF ที่รองรับ');
   const oversized = incoming.find(file => file.size > MAX_FILE_SIZE);
   if (oversized) return showError(`ไฟล์ ${oversized.name} ใหญ่เกิน 50 MB`);
@@ -108,7 +121,8 @@ function addFiles(files, { replace = false } = {}) {
   const available = Math.max(0, MAX_FILES - current.length);
   if (!available) return showError(`เพิ่มได้สูงสุด ${MAX_FILES} ไฟล์ต่อครั้ง`);
   state.files = [...current, ...incoming.slice(0, available)];
-  if (incoming.length > available) showError(`รับเพิ่มได้ ${available} ไฟล์ ระบบตัดไฟล์ส่วนเกินออก`);
+  if (rejected.length) showError('รองรับเฉพาะ PDF, PNG, JPG, WEBP, TIFF และ BMP เท่านั้น');
+  else if (incoming.length > available) showError(`รับเพิ่มได้ ${available} ไฟล์ ระบบตัดไฟล์ส่วนเกินออก`);
   else errorBox.hidden = true;
   renderFileList();
 }
@@ -750,7 +764,7 @@ async function pasteFromClipboardButton() {
     const items = await navigator.clipboard.read();
     const files = [];
     for (const item of items) {
-      const imageType = item.types.find(type => type.startsWith('image/'));
+      const imageType = item.types.find(isSupportedImageType);
       if (imageType) files.push(makeClipboardFile(await item.getType(imageType), files.length + 1));
     }
     if (!files.length) throw new Error('คลิปบอร์ดยังไม่มีรูปภาพ');
@@ -765,7 +779,7 @@ async function pasteFromClipboardButton() {
 function handlePasteEvent(event) {
   if (event.target.closest('textarea, input, select, [contenteditable="true"]')) return;
   const items = [...(event.clipboardData?.items || [])];
-  const imageItems = items.filter(item => item.kind === 'file' && item.type.startsWith('image/'));
+  const imageItems = items.filter(item => item.kind === 'file' && isSupportedImageType(item.type));
   if (!imageItems.length) return;
   event.preventDefault();
   const files = imageItems.map((item, index) => {

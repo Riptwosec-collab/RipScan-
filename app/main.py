@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import shutil
@@ -21,12 +22,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
 MAX_FILES = int(os.getenv("MAX_FILES_PER_UPLOAD", "10"))
+OCR_MAX_CONCURRENCY = max(1, int(os.getenv("OCR_MAX_CONCURRENCY", "1")))
+OCR_FILE_TIMEOUT_SECONDS = max(1, int(os.getenv("OCR_FILE_TIMEOUT_SECONDS", "120")))
+OCR_REQUEST_TIMEOUT_SECONDS = max(OCR_FILE_TIMEOUT_SECONDS, int(os.getenv("OCR_REQUEST_TIMEOUT_SECONDS", "300")))
 TESSERACT_CMD = os.getenv("TESSERACT_CMD", "").strip()
 if TESSERACT_CMD:
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 LANGUAGE_MAP = {"auto": "tha+eng", "th": "tha", "en": "eng", "th+en": "tha+eng"}
 IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/tiff", "image/bmp"}
+OCR_SEMAPHORE = asyncio.Semaphore(OCR_MAX_CONCURRENCY)
 
 app = FastAPI(title="RipScan Thai-English OCR", description="OCR ภาษาไทยและอังกฤษสำหรับภาพและ PDF", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=[origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:8000").split(",") if origin.strip()], allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
@@ -98,11 +103,27 @@ def _process_pdf(content: bytes, language: str) -> list[PageResult]:
     finally: document.close()
     return results
 
+async def _process_document(content: bytes, mime_type: str, language: str) -> tuple[list[PageResult], str]:
+    is_pdf = mime_type == "application/pdf" or content.startswith(b"%PDF")
+    processor = _process_pdf if is_pdf else _process_image
+    async with OCR_SEMAPHORE:
+        try:
+            pages = await asyncio.wait_for(
+                asyncio.to_thread(processor, content, language),
+                timeout=OCR_FILE_TIMEOUT_SECONDS,
+            )
+        except TimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail=f"ประมวลผลเอกสารเกิน {OCR_FILE_TIMEOUT_SECONDS} วินาที กรุณาลดขนาดไฟล์หรือแยกหน้าเอกสาร",
+            ) from exc
+    return pages, "application/pdf" if is_pdf else mime_type
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     executable=shutil.which(Path(pytesseract.pytesseract.tesseract_cmd).name) or pytesseract.pytesseract.tesseract_cmd
     languages=_available_languages()
-    return {"status":"healthy" if executable and ("tha" in languages or "eng" in languages) else "needs-setup","tesseract":bool(executable),"languages":[language for language in ("tha","eng") if language in languages],"maxFileSizeMb":MAX_FILE_SIZE_MB,"maxFiles":MAX_FILES}
+    return {"status":"healthy" if executable and ("tha" in languages or "eng" in languages) else "needs-setup","tesseract":bool(executable),"languages":[language for language in ("tha","eng") if language in languages],"maxFileSizeMb":MAX_FILE_SIZE_MB,"maxFiles":MAX_FILES,"ocrMaxConcurrency":OCR_MAX_CONCURRENCY,"ocrFileTimeoutSeconds":OCR_FILE_TIMEOUT_SECONDS,"ocrRequestTimeoutSeconds":OCR_REQUEST_TIMEOUT_SECONDS}
 
 @app.post("/api/ocr", response_model=list[DocumentResult])
 async def run_ocr(files: list[UploadFile] = File(...), language: str = "auto") -> list[DocumentResult]:
@@ -112,19 +133,28 @@ async def run_ocr(files: list[UploadFile] = File(...), language: str = "auto") -
     if not ocr_language: raise HTTPException(status_code=400,detail="ภาษาที่เลือกไม่ถูกต้อง")
     missing=None
     output=[]
-    for upload in files:
-        content=await upload.read(MAX_FILE_SIZE_MB*1024*1024+1)
-        if len(content)>MAX_FILE_SIZE_MB*1024*1024: raise HTTPException(status_code=413,detail=f"ไฟล์ {upload.filename} ใหญ่เกิน {MAX_FILE_SIZE_MB} MB")
-        mime_type=upload.content_type or "application/octet-stream"
-        if mime_type!="application/pdf" and not content.startswith(b"%PDF") and mime_type not in IMAGE_TYPES:
-            raise HTTPException(status_code=415,detail=f"ไม่รองรับไฟล์ {upload.filename}")
-        if missing is None:
-            missing=[item for item in ocr_language.split("+") if item not in _available_languages()]
-            if missing: raise HTTPException(status_code=503,detail=f"Tesseract ยังไม่มีภาษา: {', '.join(missing)}")
-        if mime_type=="application/pdf" or content.startswith(b"%PDF"): pages=_process_pdf(content,ocr_language); mime_type="application/pdf"
-        else: pages=_process_image(content,ocr_language)
-        confidence_values=[page.confidence for page in pages if page.text]
-        output.append(DocumentResult(filename=upload.filename or "document",mimeType=mime_type,pageCount=len(pages),fullText="\n\n".join(page.text for page in pages).strip(),confidence=mean(confidence_values) if confidence_values else 0.0,pages=pages))
+    try:
+        async with asyncio.timeout(OCR_REQUEST_TIMEOUT_SECONDS):
+            for upload in files:
+                try:
+                    content=await upload.read(MAX_FILE_SIZE_MB*1024*1024+1)
+                    if len(content)>MAX_FILE_SIZE_MB*1024*1024: raise HTTPException(status_code=413,detail=f"ไฟล์ {upload.filename} ใหญ่เกิน {MAX_FILE_SIZE_MB} MB")
+                    mime_type=upload.content_type or "application/octet-stream"
+                    if mime_type!="application/pdf" and not content.startswith(b"%PDF") and mime_type not in IMAGE_TYPES:
+                        raise HTTPException(status_code=415,detail=f"ไม่รองรับไฟล์ {upload.filename}")
+                    if missing is None:
+                        missing=[item for item in ocr_language.split("+") if item not in _available_languages()]
+                        if missing: raise HTTPException(status_code=503,detail=f"Tesseract ยังไม่มีภาษา: {', '.join(missing)}")
+                    pages, mime_type = await _process_document(content, mime_type, ocr_language)
+                    confidence_values=[page.confidence for page in pages if page.text]
+                    output.append(DocumentResult(filename=upload.filename or "document",mimeType=mime_type,pageCount=len(pages),fullText="\n\n".join(page.text for page in pages).strip(),confidence=mean(confidence_values) if confidence_values else 0.0,pages=pages))
+                finally:
+                    await upload.close()
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"ประมวลผลคำขอเกิน {OCR_REQUEST_TIMEOUT_SECONDS} วินาที กรุณาแยกเอกสารเป็นชุดเล็กลง",
+        ) from exc
     return output
 
 @app.get("/", include_in_schema=False)
